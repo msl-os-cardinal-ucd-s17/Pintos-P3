@@ -8,10 +8,6 @@
 #include "threads/synch.h"
 #include "threads/thread.h"
 
-//*********************
-#include <stdbool.h>
-//*********************
-
 
 /* See [8254] for hardware details of the 8254 timer chip. */
 
@@ -34,41 +30,6 @@ static bool too_many_loops (unsigned loops);
 static void busy_wait (int64_t loops);
 static void real_time_sleep (int64_t num, int32_t denom);
 static void real_time_delay (int64_t num, int32_t denom);
-static bool wake_up_less(const struct list_elem *, const struct list_elem *, void *);
-
-// **********************************************
-// Function for comparing wake-up times of two threads
-
-static int wake_up_less(const struct list_elem *thread1, const struct list_elem *thread2, void *aux UNUSED) {
-
-  const struct thread *t1 = list_entry(thread1, struct thread, sleeping);
-  const struct thread *t2 = list_entry(thread2, struct thread, sleeping);
-
-  return ((t1->wake_up_time) <= (t2->wake_up_time));
-}
-
-
-void test_sleeping_thread() {
-
-  if (list_front(sleep_thread) != NULL) {
-
-    if (list_front(sleep_thread)->wake_up_time == timer_ticks()){
-      // If the wake_up_time of the thread at front of list is 
-      // equal to the current number of OS ticks then it it time
-      // to wake up the thread and remove if from the sleep list.
-      thread_unblock(list_pop_front(sleep_list));
-    }
-
-  }
-  return;
-}
-
-
-
-
-// **********************************************
-
-
 
 
 /* Sets up the timer to interrupt TIMER_FREQ times per second,
@@ -130,21 +91,26 @@ timer_elapsed (int64_t then)
 void
 timer_sleep (int64_t ticks) 
 {
+
   int64_t start = timer_ticks ();
+  struct thread *current_t = thread_current();
+
+  // Make sure interrupts are on before putting thread to sleep
+  ASSERT (intr_get_level () == INTR_ON);
+
 
   // Disable interrupts in order to block thread
   intr_disable();
-  thread_current()->wake_up_time = start + ticks; // set wake up for thread
+  current_t->wake_up_time = start + ticks; // set wake up for thread
   thread_block();
+
   // NOTE - Possibly assert interrupts are disabled at this point
   intr_enable();
+  
   // Insert the sleeping thread onto to the list of sleeping threads
-  list_insert_ordered (&sleep_list, &(thread_current()->sleeping), list_less_func &wake_up_less, NULL);
+  add_sleeping_thread(current_t);
 
 
-
-
-  // ASSERT (intr_get_level () == INTR_ON);
   // while (timer_elapsed (start) < ticks) 
   //   thread_yield ();
 }

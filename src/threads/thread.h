@@ -93,15 +93,15 @@ struct thread
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
 
-    // ********************************
-    
+    // ****************************************************************
+
     // List element for sleeping threads
-    struct list_elem sleeping;
+    struct list_elem sleepElem;
 
     // Value of OS ticks when the thread should wake up
     int64_t wake_up_time;
 
-    // ********************************
+    // ****************************************************************
 
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
@@ -147,5 +147,9 @@ int thread_get_nice (void);
 void thread_set_nice (int);
 int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
+
+
+void test_sleeping_thread(void);
+void add_sleeping_thread(struct thread *);
 
 #endif /* threads/thread.h */

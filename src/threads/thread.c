@@ -15,6 +15,10 @@
 #include "userprog/process.h"
 #endif
 
+
+#include "devices/timer.h"
+
+
 /* Random value for struct thread's `magic' member.
    Used to detect stack overflow.  See the big comment at the top
    of thread.h for details. */
@@ -28,12 +32,12 @@ static struct list ready_list;
    when they are first scheduled and removed when they exit. */
 static struct list all_list;
 
-// ****************************************
+// ****************************************************************
 // List of sleeping threads. Sorting into ascending wake up time.
 // The first element in the list will be the next thread to wake up.
 static struct list sleep_list;
 
-// ****************************************
+// ****************************************************************
 
 /* Idle thread. */
 static struct thread *idle_thread;
@@ -589,3 +593,46 @@ allocate_tid (void)
 /* Offset of `stack' member within `struct thread'.
    Used by switch.S, which can't figure it out on its own. */
 uint32_t thread_stack_ofs = offsetof (struct thread, stack);
+
+
+
+// ****************************************************************
+
+// Function for comparing wake-up times of two threads
+
+static bool wake_up_less(const struct list_elem *thread1, const struct list_elem *thread2, void *aux UNUSED) {
+
+  struct thread *t1 = list_entry(thread1, struct thread, sleepElem);
+  struct thread *t2 = list_entry(thread2, struct thread, sleepElem);
+
+  return t1->wake_up_time < t2->wake_up_time;
+}
+
+
+void test_sleeping_thread() {
+
+  if (!list_empty(&sleep_list)) {
+
+    struct thread *t1 = list_entry(list_front(&sleep_list), struct thread, sleepElem);
+    int64_t wake = timer_ticks();
+    if (t1->wake_up_time == wake){
+      // If the wake_up_time of the thread at front of list is 
+      // equal to the current number of OS ticks then it it time
+      // to wake up the thread and remove if from the sleep list.
+      thread_unblock(t1);
+      list_pop_front(&sleep_list);
+    }
+
+  }
+  return;
+}
+
+
+void add_sleeping_thread(struct thread *current_t) {
+
+  list_insert_ordered (&sleep_list, &current_t->sleepElem, wake_up_less, NULL);
+}
+
+
+
+// ****************************************************************
