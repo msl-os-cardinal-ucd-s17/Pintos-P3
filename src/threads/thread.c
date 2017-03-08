@@ -103,7 +103,7 @@ thread_init (void)
   lock_init (&tid_lock);
   list_init (&ready_list);
   list_init (&all_list);
-
+  list_init (&sleep_list);
   /* Set up a thread structure for the running thread. */
   initial_thread = running_thread ();
   init_thread (initial_thread, "main", PRI_DEFAULT);
@@ -144,7 +144,7 @@ thread_tick (void)
 #endif
   else
     kernel_ticks++;
-
+  
   /* Enforce preemption. */
   if (++thread_ticks >= TIME_SLICE)
     intr_yield_on_return ();
@@ -474,7 +474,7 @@ init_thread (struct thread *t, const char *name, int priority)
   t->stack = (uint8_t *) t + PGSIZE;
   t->priority = priority;
   t->magic = THREAD_MAGIC;
-
+  sema_init(&(t->sleepSema), 0);
   old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);
   intr_set_level (old_level);
@@ -605,32 +605,29 @@ static bool wake_up_less(const struct list_elem *thread1, const struct list_elem
   struct thread *t1 = list_entry(thread1, struct thread, sleepElem);
   struct thread *t2 = list_entry(thread2, struct thread, sleepElem);
 
-  return t1->wake_up_time < t2->wake_up_time;
+  return ((t1->wake_up_time) < (t2->wake_up_time));
 }
 
 
 void test_sleeping_thread() {
-
-  if (!list_empty(&sleep_list)) {
-
-    struct thread *t1 = list_entry(list_front(&sleep_list), struct thread, sleepElem);
-    int64_t wake = timer_ticks();
-    if (t1->wake_up_time == wake){
+  struct thread *t1;
+  int64_t wake = timer_ticks();
+  while (!list_empty(&sleep_list)) {
+    t1 = list_entry(list_front(&sleep_list), struct thread, sleepElem);
+    if (wake < t1->wake_up_time){
+      break;
       // If the wake_up_time of the thread at front of list is 
       // equal to the current number of OS ticks then it it time
       // to wake up the thread and remove if from the sleep list.
-      thread_unblock(t1);
-      list_pop_front(&sleep_list);
     }
-
+    list_pop_front(&sleep_list);
+    sema_up(&(t1->sleepSema));
   }
-  return;
 }
 
 
 void add_sleeping_thread(struct thread *current_t) {
-
-  list_insert_ordered (&sleep_list, &current_t->sleepElem, wake_up_less, NULL);
+  list_insert_ordered(&sleep_list, &current_t->sleepElem, wake_up_less, NULL);
 }
 
 
