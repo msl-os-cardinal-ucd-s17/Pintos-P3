@@ -15,6 +15,9 @@
 #include "userprog/process.h"
 #endif
 
+
+#include "devices/timer.h"
+
 /* Random value for struct thread's `magic' member.
    Used to detect stack overflow.  See the big comment at the top
    of thread.h for details. */
@@ -27,6 +30,13 @@ static struct list ready_list;
 /* List of all processes.  Processes are added to this list
    when they are first scheduled and removed when they exit. */
 static struct list all_list;
+
+// ****************************************************************
+// List of sleeping threads. Sorting into ascending wake up time.
+// The first element in the list will be the next thread to wake up.
+static struct list sleep_list;
+
+// ****************************************************************
 
 /* Idle thread. */
 static struct thread *idle_thread;
@@ -92,7 +102,7 @@ thread_init (void)
   lock_init (&tid_lock);
   list_init (&ready_list);
   list_init (&all_list);
-
+  list_init (&sleep_list);
   /* Set up a thread structure for the running thread. */
   initial_thread = running_thread ();
   init_thread (initial_thread, "main", PRI_DEFAULT);
@@ -463,7 +473,7 @@ init_thread (struct thread *t, const char *name, int priority)
   t->stack = (uint8_t *) t + PGSIZE;
   t->priority = priority;
   t->magic = THREAD_MAGIC;
-
+  sema_init(&(t->sleepSema), 0);
   old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);
   intr_set_level (old_level);
@@ -582,3 +592,41 @@ allocate_tid (void)
 /* Offset of `stack' member within `struct thread'.
    Used by switch.S, which can't figure it out on its own. */
 uint32_t thread_stack_ofs = offsetof (struct thread, stack);
+
+// ****************************************************************
+
+// Function for comparing wake-up times of two threads
+
+static bool wake_up_less(const struct list_elem *thread1, const struct list_elem *thread2, void *aux UNUSED) {
+
+  struct thread *t1 = list_entry(thread1, struct thread, sleepElem);
+  struct thread *t2 = list_entry(thread2, struct thread, sleepElem);
+
+  return ((t1->wake_up_time) < (t2->wake_up_time));
+}
+
+
+void test_sleeping_thread() {
+  struct thread *t1;
+  int64_t wake = timer_ticks();
+  while (!list_empty(&sleep_list)) {
+    t1 = list_entry(list_front(&sleep_list), struct thread, sleepElem);
+    if (wake < t1->wake_up_time){
+      break;
+      // If the wake_up_time of the thread at front of list is 
+      // equal to the current number of OS ticks then it it time
+      // to wake up the thread and remove if from the sleep list.
+    }
+    list_pop_front(&sleep_list);
+    sema_up(&(t1->sleepSema));
+  }
+}
+
+
+void add_sleeping_thread(struct thread *current_t) {
+  list_insert_ordered(&sleep_list, &current_t->sleepElem, wake_up_less, NULL);
+}
+
+
+
+// ****************************************************************

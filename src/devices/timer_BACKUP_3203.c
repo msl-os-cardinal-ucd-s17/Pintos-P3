@@ -7,7 +7,12 @@
 #include "threads/interrupt.h"
 #include "threads/synch.h"
 #include "threads/thread.h"
+<<<<<<< HEAD
+  
+=======
 
+
+>>>>>>> eebce191eda3c83b4845d45c5ebf2c97975e3d61
 /* See [8254] for hardware details of the 8254 timer chip. */
 
 #if TIMER_FREQ < 19
@@ -30,6 +35,10 @@ static void busy_wait (int64_t loops);
 static void real_time_sleep (int64_t num, int32_t denom);
 static void real_time_delay (int64_t num, int32_t denom);
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> eebce191eda3c83b4845d45c5ebf2c97975e3d61
 /* Sets up the timer to interrupt TIMER_FREQ times per second,
    and registers the corresponding interrupt. */
 void
@@ -90,6 +99,12 @@ void
 timer_sleep (int64_t ticks) 
 {
   int64_t start = timer_ticks ();
+<<<<<<< HEAD
+
+  ASSERT (intr_get_level () == INTR_ON);
+  while (timer_elapsed (start) < ticks) 
+    thread_yield ();
+=======
   struct thread *current_t = thread_current();
 
   // Make sure interrupts are on before putting thread to sleep
@@ -100,6 +115,7 @@ timer_sleep (int64_t ticks)
   add_sleeping_thread(current_t);
   intr_enable();
   sema_down(&(current_t->sleepSema));
+>>>>>>> eebce191eda3c83b4845d45c5ebf2c97975e3d61
 }
 
 /* Sleeps for approximately MS milliseconds.  Interrupts must be
@@ -178,7 +194,10 @@ timer_interrupt (struct intr_frame *args UNUSED)
 {
   ticks++;
   thread_tick ();
+<<<<<<< HEAD
+=======
   test_sleeping_thread();
+>>>>>>> eebce191eda3c83b4845d45c5ebf2c97975e3d61
 }
 
 /* Returns true if LOOPS iterations waits for more than one timer
