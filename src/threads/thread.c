@@ -18,6 +18,7 @@
 
 #include "devices/timer.h"
 
+#include "threads/fixed-point.h"
 
 /* Random value for struct thread's `magic' member.
    Used to detect stack overflow.  See the big comment at the top
@@ -629,7 +630,6 @@ void test_sleeping_thread() {
 void add_sleeping_thread(struct thread *current_t) {
   list_insert_ordered(&sleep_list, &current_t->sleepElem, wake_up_less, NULL);
 }
-
 
 
 // ****************************************************************
