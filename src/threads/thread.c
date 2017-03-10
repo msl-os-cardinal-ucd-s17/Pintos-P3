@@ -503,9 +503,14 @@ static struct thread *
 next_thread_to_run (void) 
 {
   if (list_empty (&ready_list))
+  {
     return idle_thread;
+  }
   else
+  {
+
     return list_entry (list_pop_front (&ready_list), struct thread, elem);
+  }
 }
 
 /* Completes a thread switch by activating the new thread's page
@@ -606,9 +611,15 @@ static bool wake_up_less(const struct list_elem *thread1, const struct list_elem
   struct thread *t1 = list_entry(thread1, struct thread, sleepElem);
   struct thread *t2 = list_entry(thread2, struct thread, sleepElem);
 
-  return ((t1->wake_up_time) < (t2->wake_up_time));
+  if (t1->priority != t2->priority)
+  {
+    return ((t2->priority) < (t1->priority));
+  }
+  else
+  {
+    return ((t1->wake_up_time) < (t2->wake_up_time));
+  }
 }
-
 
 void test_sleeping_thread() {
   struct thread *t1;
