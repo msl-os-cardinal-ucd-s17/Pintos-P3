@@ -90,6 +90,7 @@ struct thread
     char name[16];                      /* Name (for debugging purposes). */
     uint8_t *stack;                     /* Saved stack pointer. */
     int priority;                       /* Priority. */
+    int effective_priority;             /* Priority based on donors*/
     struct list_elem allelem;           /* List element for all threads list. */
 
     /* Shared between thread.c and synch.c. */
@@ -101,9 +102,6 @@ struct thread
     int recent_cpu;			/* Rececent CPU */
     
     // ****************************************************************
-
-    struct list_elem priorElem;
-
     struct list_elem sleepElem;
     
     struct semaphore sleepSema;
