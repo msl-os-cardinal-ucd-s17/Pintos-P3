@@ -695,7 +695,7 @@ static bool prior_less(const struct list_elem*thread1, const struct list_elem*th
    struct thread *t1 = list_entry(thread1, struct thread, elem);
    struct thread *t2 = list_entry(thread2, struct thread, elem);
 
-   return ((t1->priority) < (t2->priority));
+   return ((t2->priority) < (t1->priority));
 }
 
 void test_sleeping_thread() {
