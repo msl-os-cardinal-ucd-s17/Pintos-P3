@@ -96,6 +96,8 @@ struct thread
     struct list_elem elem;              /* List element. */
     // ****************************************************************
 
+    struct list_elem priorElem;
+
     struct list_elem sleepElem;
     
     struct semaphore sleepSema;
@@ -152,5 +154,8 @@ int thread_get_load_avg (void);
 
 void test_sleeping_thread(void);
 void add_sleeping_thread(struct thread *);
+
+void add_thread_ready_priority_list(struct thread*);
+void verify_current_thread_highest(struct thread*);
 
 #endif /* threads/thread.h */

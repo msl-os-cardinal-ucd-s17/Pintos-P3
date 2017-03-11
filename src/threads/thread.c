@@ -43,6 +43,9 @@ static struct list all_list;
 static struct list sleep_list;
 
 // ****************************************************************
+//List of threads based on ascending priority. The first element in the list
+//is the element with the highest priority.
+static struct list priority_list;
 
 /* Idle thread. */
 static struct thread *idle_thread;
@@ -109,6 +112,7 @@ thread_init (void)
   list_init (&ready_list);
   list_init (&all_list);
   list_init (&sleep_list);
+  list_init (&priority_list);
   /* Set up a thread structure for the running thread. */
   initial_thread = running_thread ();
   init_thread (initial_thread, "main", PRI_DEFAULT);
@@ -197,6 +201,7 @@ thread_create (const char *name, int priority,
 
   /* Initialize thread. */
   init_thread (t, name, priority);
+  //add_thread_priority_list(t);
   tid = t->tid = allocate_tid ();
 
   /* Stack frame for kernel_thread(). */
@@ -253,7 +258,10 @@ thread_unblock (struct thread *t)
 
   old_level = intr_disable ();
   ASSERT (t->status == THREAD_BLOCKED);
-  list_push_back (&ready_list, &t->elem);
+  //list_push_back (&ready_list, &t->elem);
+  //list_push_front(&ready_list, &t->elem);
+  add_thread_ready_priority_list(t);
+  verify_current_thread_highest(t);
   t->status = THREAD_READY;
   intr_set_level (old_level);
 }
@@ -323,8 +331,10 @@ thread_yield (void)
   ASSERT (!intr_context ());
 
   old_level = intr_disable ();
-  if (cur != idle_thread) 
-    list_push_back (&ready_list, &cur->elem);
+  if (cur != idle_thread) {
+    //list_push_back (&ready_list, &cur->elem);
+    add_thread_ready_priority_list(cur);
+  }
   cur->status = THREAD_READY;
   schedule ();
   intr_set_level (old_level);
@@ -351,7 +361,9 @@ thread_foreach (thread_action_func *func, void *aux)
 void
 thread_set_priority (int new_priority) 
 {
+  struct thread *t = thread_current();
   thread_current ()->priority = new_priority;
+  verify_current_thread_highest(list_front(&ready_list));
 }
 
 /* Returns the current thread's priority. */
@@ -611,6 +623,13 @@ static bool wake_up_less(const struct list_elem *thread1, const struct list_elem
   return ((t1->wake_up_time) < (t2->wake_up_time));
 }
 
+static bool prior_less(const struct list_elem*thread1, const struct list_elem*thread2, void*aux UNUSED) {
+   struct thread *t1 = list_entry(thread1, struct thread, priorElem);
+   struct thread *t2 = list_entry(thread2, struct thread, priorElem);
+
+   return ((t1->priority) < (t2->priority));
+}
+
 
 void test_sleeping_thread() {
   struct thread *t1;
@@ -634,3 +653,14 @@ void add_sleeping_thread(struct thread *current_t) {
 }
 
 // ****************************************************************
+
+void add_thread_ready_priority_list(struct thread*t) {
+  list_insert_ordered(&ready_list, &t->elem, prior_less, NULL);
+}
+
+void verify_current_thread_highest(struct thread*t) {
+  struct thread *current_thread = thread_current();
+  if(current_thread->priority < t) {
+    thread_yield();
+  }
+}
