@@ -94,6 +94,12 @@ struct thread
 
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
+
+    // **************************************************
+
+    int nice; 				/* Nice value */
+    int recent_cpu;			/* Rececent CPU */
+    
     // ****************************************************************
 
     struct list_elem priorElem;
@@ -151,7 +157,7 @@ int thread_get_nice (void);
 void thread_set_nice (int);
 int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
-
+void m_priority(struct thread *);
 void test_sleeping_thread(void);
 void add_sleeping_thread(struct thread *);
 
