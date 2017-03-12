@@ -158,6 +158,7 @@ void calc_load_avg (void);
 void calc_recent_cpu (struct thread *t);
 void increment_recent_cpu (void);
 void m_priority(struct thread *);
+void recalc_mlfqs (void);
 void test_sleeping_thread(void);
 void add_sleeping_thread(struct thread *);
 
