@@ -273,20 +273,23 @@ lock_release (struct lock *lock)
   struct list_elem *next_lock_blocked_thread_elem;
   lock->holder = NULL;
 
-  // Iterate through all of the current thread's donators to unblock them from the released lock.
-  while (lock_blocked_thread_elem != list_end (&(thread_current ()->donor_list)))
+  if (!thread_mlfqs)
   {
-    lock_blocked_thread = list_entry(lock_blocked_thread_elem, struct thread, donor_elem);
-    next_lock_blocked_thread_elem = list_next(lock_blocked_thread_elem);
-    if (lock_blocked_thread->blocking_lock == lock)
+    // Iterate through all of the current thread's donators to unblock them from the released lock.
+    while (lock_blocked_thread_elem != list_end (&(thread_current ()->donor_list)))
     {
-    	list_remove(lock_blocked_thread_elem);
+      lock_blocked_thread = list_entry(lock_blocked_thread_elem, struct thread, donor_elem);
+      next_lock_blocked_thread_elem = list_next(lock_blocked_thread_elem);
+      if (lock_blocked_thread->blocking_lock == lock)
+      {
+        list_remove(lock_blocked_thread_elem);
+      }
+      lock_blocked_thread_elem = next_lock_blocked_thread_elem;
     }
-    lock_blocked_thread_elem = next_lock_blocked_thread_elem;
+    
+    // Updates the priority.
+    thread_priority_synchronize();
   }
-  
-  // Updates the priority.
-  thread_priority_synchronize();
 
   sema_up (&lock->semaphore);
   intr_set_level (old_level);

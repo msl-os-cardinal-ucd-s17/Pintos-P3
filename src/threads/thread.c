@@ -87,7 +87,6 @@ static void *alloc_frame (struct thread *, size_t size);
 static void schedule (void);
 void thread_schedule_tail (struct thread *prev);
 static tid_t allocate_tid (void);
-// static void thread_donate_priority_aux (struct thread *, struct lock *, int donation_depth);
 
 /* Initializes the threading system by transforming the code
    that's currently running into a thread.  This can't work in
@@ -113,9 +112,6 @@ thread_init (void)
   list_init (&all_list);
   list_init (&sleep_list);
 
-  /* Set initial load average to 0 */
-  load_average.value = 0;
-
   /* Set up a thread structure for the running thread. */
   initial_thread = running_thread ();
   init_thread (initial_thread, "main", PRI_DEFAULT);
@@ -133,6 +129,9 @@ thread_start (void)
   sema_init (&idle_started, 0);
   thread_create ("idle", PRI_MIN, idle, &idle_started);
 
+  /* Set initial load average to 0 */
+  load_average.value = 0;
+  
   /* Start preemptive thread scheduling. */
   intr_enable ();
 
@@ -146,7 +145,6 @@ thread_start (void)
 void
 thread_tick (void) 
 {
-
   struct thread *t = thread_current ();
 
   /* Update statistics. */
@@ -158,29 +156,6 @@ thread_tick (void)
 #endif
   else
     kernel_ticks++;
-
-  if (thread_mlfqs)
-  {
-	   enum intr_level old_level = intr_disable ();
-   
-	   /* Increment recent_cpu for currently running on each timer tick */
-	   increment_recent_cpu ();
-        
-	   /* recalculate system load average */
-	   if (kernel_ticks % TIMER_FREQ == 0)
-     {
-        calc_load_avg();
-	   }
-	  
-	   /* recalculate priority on fourth tick */  
-	   if (kernel_ticks % TIME_SLICE == 0)
-     {
-		    recalc_mlfqs();
-        /*m_priority(thread_current());*/
-	   }
-	   
-    intr_set_level (old_level);
-  }    
 	
   /* Enforce preemption. */
   if (++thread_ticks >= TIME_SLICE)
@@ -451,23 +426,6 @@ thread_donate_priority (void)
     cur_lock = cur_thread->blocking_lock;
   }
 }
-
-/* Recursive auxillary function that enables priority donation in thread_donate_priority(). */
-/*
-static void
-thread_donate_priority_aux (struct thread *cur_t, struct lock *cur_blocking_lock, int donation_depth)
-{
-  if (cur_blocking_lock != NULL && cur_blocking_lock->holder != NULL && donation_depth < DONATION_DEPTH_LIMIT && (((cur_blocking_lock)->holder)->effective_priority < cur_t->effective_priority))
-  {
-    int next_donation_depth = donation_depth + 1;
-    struct thread *next_t = cur_blocking_lock->holder;
-    next_t->effective_priority = cur_t->effective_priority;
-    struct lock *next_blocking_lock = next_t->blocking_lock;
-    thread_donate_priority_aux(&next_t, &next_blocking_lock, next_donation_depth);
-  }
-  return;
-}
-*/
 
 /* Sets the current thread's nice value to NICE. */
 void

@@ -4,11 +4,9 @@
 #include <stdint.h>
 
 /*
-
-This file implements fixed point arithmetic for the pintos 
-operating system.
-
- */
+    This file implements fixed point arithmetic for the pintos 
+    operating system.
+*/
 
 // Using the 17.14 p.q format
 #define UPPER_BITS 17
@@ -25,6 +23,18 @@ struct fixed_point
 {
     int value;
 };
+
+struct fixed_point int_to_fixed(int);
+int fixed_to_int_round0(struct fixed_point);
+int fixed_to_int_roundInt(struct fixed_point);
+struct fixed_point add_fixed(struct fixed_point, struct fixed_point);
+struct fixed_point sub_fixed(struct fixed_point, struct fixed_point);
+struct fixed_point fixed_plus_int(struct fixed_point, int);
+struct fixed_point fixed_minus_int(struct fixed_point, int);
+struct fixed_point mult_fixed(struct fixed_point, struct fixed_point);
+struct fixed_point fixed_mult_int(struct fixed_point, int);
+struct fixed_point div_fixed(struct fixed_point, struct fixed_point);
+struct fixed_point fixed_div_int(struct fixed_point, int);
 
 // Convert integer to fixed point
 struct fixed_point int_to_fixed(int integer)
