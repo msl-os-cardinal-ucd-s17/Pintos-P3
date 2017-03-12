@@ -467,6 +467,19 @@ m_priority(struct thread *t)
   }
 }
 
+/* Recalculates mlfqs recent_cpu and priority for each thread in queue (ready_list). */
+void 
+recalc_mlfqs (void)
+{
+	struct list_elem *l;
+	for (l = list_begin(&ready_list); l != list_end(&ready_list); l = ready_next(l)){
+      		struct thread *t = list_entry(l, struct thread, allelem);
+      		calc_recent_cpu(t);
+      		m_priority(t);
+    }
+
+}
+
 /* Calculate system load average */
 /* load_avg = (59/60)*load_avg + (1/60)*ready_threads */
 void 
