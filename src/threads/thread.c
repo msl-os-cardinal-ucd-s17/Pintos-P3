@@ -481,9 +481,9 @@ int
 thread_get_load_avg (void) 
 {
   ASSERT(thread_mlfqs);
-  enum intr_level old_level = intr_disable ();
-  return fixed_to_int_roundInt( fixed_mult_int(load_average, 100));
-  intr_set_level (old_level);
+  //enum intr_level old_level = intr_disable ();
+  return (fixed_to_int_roundInt(load_average) * 100);
+  //intr_set_level (old_level);
 }
 
 /* Returns 100 times the current thread's recent_cpu value. */
