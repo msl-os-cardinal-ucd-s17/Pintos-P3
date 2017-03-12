@@ -188,15 +188,13 @@ timer_interrupt (struct intr_frame *args UNUSED)
         
 	/* recalculate system load average */
 	if (timer_ticks() % TIMER_FREQ == 0){
-		
          	calc_load_avg();
-		recalc_mlfqs();
 	}
 	  
 	/* recalculate priority on fourth tick */  
 	if (timer_ticks() % TIME_SLICE == 0){
-		
-         	m_priority(thread_current());
+		recalc_mlfqs();
+         	/*m_priority(thread_current());*/
 	}
   }
 }
