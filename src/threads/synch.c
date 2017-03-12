@@ -70,6 +70,10 @@ sema_down (struct semaphore *sema)
   old_level = intr_disable ();
   while (sema->value == 0) 
   {
+    if (!thread_mlfqs)
+    {
+      thread_donate_priority();
+    }
     add_thread_sema_priority_list(thread_current(), sema);
     thread_block ();
   }
@@ -281,6 +285,9 @@ lock_release (struct lock *lock)
     lock_blocked_thread_elem = next_lock_blocked_thread_elem;
   }
   
+  // Resets the current thread's effective_priority to its regular priority.
+  thread_priority_synchronize();
+
   sema_up (&lock->semaphore);
   intr_set_level (old_level);
 }
@@ -390,7 +397,8 @@ cond_broadcast (struct condition *cond, struct lock *lock)
     cond_signal (cond, lock);
 }
 
-static bool semaphore_waiting_threads_less (const struct list_elem *semaphore_elem_1, const struct list_elem *semaphore_elem_2, void *aux UNUSED)
+static bool 
+semaphore_waiting_threads_less (const struct list_elem *semaphore_elem_1, const struct list_elem *semaphore_elem_2, void *aux UNUSED)
 {
   bool is_semaphore_elem_1_prioritized = false;
   struct semaphore_elem *s1;
@@ -425,7 +433,7 @@ static bool semaphore_waiting_threads_less (const struct list_elem *semaphore_el
    	t1 = list_entry(list_front(&s1->semaphore.waiters), struct thread, elem);
    	t2 = list_entry(list_front(&s2->semaphore.waiters), struct thread, elem);
 
-   	is_semaphore_elem_1_prioritized = ((t2->priority) < (t1->priority));
+   	is_semaphore_elem_1_prioritized = ((t2->effective_priority) < (t1->effective_priority));
   }
 
   return is_semaphore_elem_1_prioritized;
