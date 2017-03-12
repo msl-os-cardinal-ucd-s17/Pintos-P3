@@ -87,7 +87,7 @@ static void *alloc_frame (struct thread *, size_t size);
 static void schedule (void);
 void thread_schedule_tail (struct thread *prev);
 static tid_t allocate_tid (void);
-static void thread_donate_priority_aux (struct thread *, struct lock *, int donation_depth);
+// static void thread_donate_priority_aux (struct thread *, struct lock *, int donation_depth);
 
 /* Initializes the threading system by transforming the code
    that's currently running into a thread.  This can't work in
@@ -448,19 +448,9 @@ thread_donate_priority (void)
     cur_thread = cur_lock->holder;
     cur_lock = cur_thread->blocking_lock;
   }
-
-  /*
-  struct thread *t = thread_current();
-  int starting_depth = 0;
-  if (t->blocking_lock != NULL && !list_empty(&t->donor_list) && starting_depth < DONATION_DEPTH_LIMIT)
-  {
-    thread_donate_priority_aux(t, t->blocking_lock, starting_depth);
-  }
-  */
 }
 
 /* Recursive auxillary function that enables priority donation in thread_donate_priority(). */
-
 /*
 static void
 thread_donate_priority_aux (struct thread *cur_t, struct lock *cur_blocking_lock, int donation_depth)
