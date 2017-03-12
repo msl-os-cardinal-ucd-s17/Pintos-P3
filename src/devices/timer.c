@@ -182,7 +182,21 @@ timer_interrupt (struct intr_frame *args UNUSED)
   thread_tick ();
   test_sleeping_thread();
    
-  
+   if (thread_mlfqs){
+	   /* Increment recent_cpu for currently running on each timer tick */
+	   increment_recent_cpu ();
+        
+	   /* recalculate system load average */
+	   if (ticks % TIMER_FREQ == 0){
+         	calc_load_avg();
+	   }
+	  
+	   /* recalculate priority on fourth tick */  
+	   if (ticks % TIME_SLICE == 0){
+		   recalc_mlfqs();
+         /*m_priority(thread_current());*/
+	   }
+  }    
 }
 
 /* Returns true if LOOPS iterations waits for more than one timer
