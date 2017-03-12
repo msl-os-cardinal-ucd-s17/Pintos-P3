@@ -483,7 +483,7 @@ thread_get_load_avg (void)
   ASSERT(thread_mlfqs);
   //enum intr_level old_level = intr_disable ();
   struct fixed_point tmp;
-  tmp = fixed_mult_int(load_average, 1000);	
+  tmp = fixed_mult_int(load_average, 10000);	
   
 	
   return fixed_to_int_roundInt(tmp);
