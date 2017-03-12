@@ -531,15 +531,8 @@ recalc_mlfqs (void)
 {
   ASSERT(thread_mlfqs);
 
-	struct list_elem *l;
-	for (l = list_begin(&ready_list); l != list_end(&ready_list); l = list_next(l))
-  {
-    struct thread *t = list_entry(l, struct thread, allelem);
-    calc_recent_cpu(t);
-    m_priority(t);
-  }
-	for (l = list_begin(&all_list); l != list_end(&all_list); l = list_next(l))
-  {
+  struct list_elem *l;
+  for (l = list_begin(&all_list); l != list_end(&all_list); l = list_next(l)){
     struct thread *t = list_entry(l, struct thread, allelem);
     calc_recent_cpu(t);
     m_priority(t);
