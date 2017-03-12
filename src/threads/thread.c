@@ -576,7 +576,7 @@ calc_recent_cpu (struct thread *t)
 	
 	struct fixed_point t1;
 	struct fixed_point t1_divisor; 
-	t1 = fixed_mult_int(load_average, 2);
+	t1.value = load_average * 2;
 	t1_divisor = fixed_plus_int(t1, 1);
 	t1 = div_fixed (t1, t1_divisor);
 	int t2 = t->recent_cpu + t->nice;
