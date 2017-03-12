@@ -174,4 +174,5 @@ void recalc_mlfqs (void);
 bool thread_priority_less (const struct list_elem *, const struct list_elem *, void *);
 void thread_priority_synchronize (void);
 
+
 #endif /* threads/thread.h */

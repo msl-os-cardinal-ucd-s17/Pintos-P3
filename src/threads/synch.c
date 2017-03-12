@@ -266,6 +266,7 @@ lock_release (struct lock *lock)
   ASSERT (lock != NULL);
   ASSERT (lock_held_by_current_thread (lock));
 
+
   enum intr_level old_level = intr_disable ();
   struct thread *lock_blocked_thread;
   struct list_elem *lock_blocked_thread_elem = list_begin (&(thread_current ()->donor_list));
