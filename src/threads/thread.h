@@ -97,7 +97,6 @@ struct thread
     struct list_elem elem;              /* List element. */
 
     // **************************************************
-
     int nice; 				/* Nice value */
     int recent_cpu;			/* Rececent CPU */
     
@@ -160,6 +159,8 @@ void test_sleeping_thread(void);
 void add_sleeping_thread(struct thread *);
 
 void add_thread_ready_priority_list(struct thread*);
+void add_thread_sema_priority_list(struct thread*, struct semaphore*);
+void sort_thread_sema_priority_list(struct semaphore*);
 void verify_current_thread_highest(struct thread*);
 
 #endif /* threads/thread.h */

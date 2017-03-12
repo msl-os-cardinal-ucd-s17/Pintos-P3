@@ -727,6 +727,15 @@ void add_thread_ready_priority_list(struct thread*t) {
   list_insert_ordered(&ready_list, &t->elem, prior_less, NULL);
 }
 
+;
+void add_thread_sema_priority_list(struct thread*t, struct semaphore*sema) {
+    list_insert_ordered(&(sema->waiters), &t->elem, prior_less, NULL);
+}
+
+void sort_thread_sema_priority_list(struct semaphore*sema) {
+    list_sort(&(sema->waiters), prior_less, NULL);
+}
+
 void verify_current_thread_highest(struct thread*t) {
   struct thread *current_thread = thread_current();
   if(current_thread->priority < t->priority) {
