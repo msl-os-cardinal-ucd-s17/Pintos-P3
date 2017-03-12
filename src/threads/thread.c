@@ -484,10 +484,10 @@ thread_get_load_avg (void)
   enum intr_level old_level = intr_disable ();
   struct fixed_point tmp;
   tmp = fixed_mult_int(load_average, 100);	
-  
+  intr_set_level (old_level);
 	
   return fixed_to_int_roundInt(tmp);
-  intr_set_level (old_level);
+  
 }
 
 /* Returns 100 times the current thread's recent_cpu value. */
@@ -498,8 +498,9 @@ thread_get_recent_cpu (void)
   enum intr_level old_level = intr_disable ();
   struct fixed_point cpu;
   cpu.value = thread_current()->recent_cpu;
-  return fixed_to_int_round0 (fixed_mult_int (cpu, 100));
   intr_set_level (old_level);
+  return fixed_to_int_round0 (fixed_mult_int (cpu, 100));
+  
 
 }
 
