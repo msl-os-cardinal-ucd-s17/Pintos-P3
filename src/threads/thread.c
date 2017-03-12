@@ -394,9 +394,13 @@ thread_set_nice (int new_nice)
   
   /* Yield if no longer has highest priority */
   if (!list_empty (&ready_list)){
-    if (thread_current()->priority < list_entry (list_front (&ready_list), struct thread, elem)->priority){
-      thread_yield();
-    }
+    
+	struct thread *t = list_entry (list_front (&ready_list), struct thread, elem);
+    	thread_ticks++;
+
+    	if (thread_current()->priority < t->priority){
+      		thread_yield();
+    	}
   }
 
   /* Restore interrupt level */
