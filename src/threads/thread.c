@@ -229,6 +229,11 @@ thread_create (const char *name, int priority,
   /* Add to run queue. */
   thread_unblock (t);
 
+  if (thread_mlfqs){
+  	m_priority (t);
+	return tid;
+  }
+	
   //Verify that the current thread is highest priority
   verify_current_thread_highest();
 
@@ -474,7 +479,7 @@ m_priority(struct thread *t)
   }
 }
 
-/* Recalculates mlfqs recent_cpu and priority for each thread in queue (ready_list). */
+/* Recalculates mlfqs recent_cpu and priority for all threads (running, blocked, idle). */
 void 
 recalc_mlfqs (void)
 {
@@ -485,6 +490,11 @@ recalc_mlfqs (void)
     calc_recent_cpu(t);
     m_priority(t);
   }
+	for (l = list_begin(&all_list); l != list_end(&all_list); l = list_next(l)){
+      		struct thread *t = list_entry(l, struct thread, allelem);
+      		calc_recent_cpu(t);
+      		m_priority(t);
+    }
 }
 
 /* Calculate system load average */

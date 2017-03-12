@@ -159,6 +159,7 @@ int thread_get_load_avg (void);
 void calc_load_avg (void);
 void calc_recent_cpu (struct thread *t);
 void increment_recent_cpu (void);
+
 void m_priority (struct thread *);
 void test_sleeping_thread (void);
 void add_sleeping_thread (struct thread *);
@@ -169,5 +170,15 @@ void sort_thread_sema_priority_list (struct semaphore*);
 void verify_current_thread_highest (void);
 void recalc_mlfqs (void);
 bool thread_priority_less (const struct list_elem *, const struct list_elem *, void *);
+
+void m_priority(struct thread *);
+void recalc_mlfqs (void);
+void test_sleeping_thread(void);
+void add_sleeping_thread(struct thread *);
+
+void add_thread_ready_priority_list(struct thread*);
+void add_thread_sema_priority_list(struct thread*, struct semaphore*);
+void sort_thread_sema_priority_list(struct semaphore*);
+void verify_current_thread_highest(struct thread*);
 
 #endif /* threads/thread.h */
