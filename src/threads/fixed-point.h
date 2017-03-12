@@ -46,10 +46,10 @@ inline int fixed_to_int_roundInt(struct fixed_point num)
 {
 
     if (num.value >= 0) {
-        return num.value + (FACTOR/2);
+        return (num.value + (FACTOR/2))/FACTOR;
     }
     else {
-        return num.value - (FACTOR/2);
+        return (num.value - (FACTOR/2))/FACTOR;
     }
 }
 
