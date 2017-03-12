@@ -479,11 +479,11 @@ int
 thread_get_load_avg (void) 
 {
   ASSERT(thread_mlfqs);
-  enum intr_level old_level = intr_disable ();
+  //enum intr_level old_level = intr_disable ();
   struct fixed_point tmp;
   tmp.value = fixed_to_int_roundInt (load_average);
   tmp = fixed_mult_int (tmp, 100);
-  intr_set_level (old_level);
+  //intr_set_level (old_level);
   return tmp.value;
   
 }
@@ -493,10 +493,10 @@ int
 thread_get_recent_cpu (void) 
 {
   ASSERT(thread_mlfqs);
-  enum intr_level old_level = intr_disable ();
+  //enum intr_level old_level = intr_disable ();
   struct fixed_point cpu;
   cpu.value = thread_current()->recent_cpu;
-  intr_set_level (old_level);
+  //intr_set_level (old_level);
   return fixed_to_int_round0 (fixed_mult_int (cpu, 100));
   
 
