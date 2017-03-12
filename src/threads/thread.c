@@ -135,6 +135,10 @@ thread_start (void)
 
   /* Wait for the idle thread to initialize idle_thread. */
   sema_down (&idle_started);
+	
+  /* Set initial load average to 0 */
+  load_average = 0;
+	
 }
 
 /* Called by the timer interrupt handler at each timer tick.
