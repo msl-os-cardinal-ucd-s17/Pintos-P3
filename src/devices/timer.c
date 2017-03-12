@@ -181,13 +181,13 @@ timer_interrupt (struct intr_frame *args UNUSED)
   test_sleeping_thread();
    
   if (thread_mlfqs){
-		/* Increment recent_cpu on each timer tick */
-		increment_recent_cpu ();
+	/* Increment recent_cpu on each timer tick */
+	increment_recent_cpu ();
      
-		if (ticks % TIMER_FREQ == 0){
-		   /* recalculate load average */
-         calc_load_avg();
-		}
+	if (ticks % TIMER_FREQ == 0){
+		/* recalculate load average */
+         	calc_load_avg();
+	}
   }
 }
 
