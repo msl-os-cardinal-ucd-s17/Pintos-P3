@@ -479,7 +479,7 @@ thread_get_load_avg (void)
 {
   ASSERT(thread_mlfqs);
   struct fixed_point tmp;
-  tmp = fixed_mult_int(load_average, 100);
+  tmp = fixed_mult_int(load_average, 10);
   return fixed_to_int_roundInt(tmp);
 }
 
