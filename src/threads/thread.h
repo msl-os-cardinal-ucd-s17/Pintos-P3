@@ -162,6 +162,7 @@ void add_sleeping_thread(struct thread *);
 
 void add_thread_ready_priority_list(struct thread*);
 void add_thread_sema_priority_list(struct thread*, struct semaphore*);
+void add_thread_cond_priority_list(struct list_elem*, struct condition*);
 void sort_thread_sema_priority_list(struct semaphore*);
 void verify_current_thread_highest(struct thread*);
 

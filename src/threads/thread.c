@@ -768,6 +768,11 @@ void add_thread_sema_priority_list(struct thread*t, struct semaphore*sema) {
     list_insert_ordered(&(sema->waiters), &t->elem, prior_less, NULL);
 }
 
+void add_thread_cond_priority_list(struct list_elem* elem, struct condition*cond) {
+  list_insert_ordered(&(cond->waiters), elem, prior_less, NULL);
+}
+
+
 void sort_thread_sema_priority_list(struct semaphore*sema) {
     list_sort(&(sema->waiters), prior_less, NULL);
 }
