@@ -179,6 +179,16 @@ timer_interrupt (struct intr_frame *args UNUSED)
   ticks++;
   thread_tick ();
   test_sleeping_thread();
+   
+  if (thread_mlfqs){
+		/* Increment recent_cpu on each timer tick */
+		increment_recent_cpu ();
+     
+		if (ticks % TIMER_FREQ == 0){
+		   /* recalculate load average */
+         calc_load_avg();
+		}
+  }
 }
 
 /* Returns true if LOOPS iterations waits for more than one timer
