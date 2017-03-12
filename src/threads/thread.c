@@ -146,6 +146,22 @@ thread_start (void)
 void
 thread_tick (void) 
 {
+  if (thread_mlfqs){
+	/* Increment recent_cpu for currently running on each timer tick */
+	increment_recent_cpu ();
+        
+	/* recalculate system load average */
+	if (ticks % TIMER_FREQ == 0){
+         	calc_load_avg();
+	}
+	  
+	/* recalculate priority on fourth tick */  
+	if (ticks % TIME_SLICE == 0){
+		recalc_mlfqs();
+         	/*m_priority(thread_current());*/
+	}
+  }
+
   struct thread *t = thread_current ();
 
   /* Update statistics. */
