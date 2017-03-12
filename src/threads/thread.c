@@ -457,10 +457,33 @@ m_priority(struct thread *t)
   if (t->priority > PRI_MAX){
     t->priority = PRI_MAX;
   }
-  
-
 }
 
+/* Calculate system load average */
+/* load_avg = (59/60)*load_avg + (1/60)*ready_threads */
+void 
+calc_load_avg (void)
+{
+	
+	struct fixed_point t1;
+	t1.value = 59;
+	t1 = fixed_div_int (t1, 60);
+	t1 = fixed_mult_int (t1, load_average);
+	
+	int temp = list_size (&ready_list);
+	if (thread_current() != idle_thread){
+		temp++;
+	}
+
+	struct fixed_point t2;
+	t2.value = temp;
+	t2 = fixed_div_int (t2, 60);
+
+	t1 = add_fixed (t1, t2);
+	load_average = fixed_to_int_round0(t1);
+
+
+}
 
 /* Idle thread.  Executes when no other thread is ready to run.
 
