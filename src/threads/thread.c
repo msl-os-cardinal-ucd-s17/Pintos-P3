@@ -146,21 +146,6 @@ thread_start (void)
 void
 thread_tick (void) 
 {
-  if (thread_mlfqs){
-	/* Increment recent_cpu for currently running on each timer tick */
-	increment_recent_cpu ();
-        
-	/* recalculate system load average */
-	if (ticks % TIMER_FREQ == 0){
-         	calc_load_avg();
-	}
-	  
-	/* recalculate priority on fourth tick */  
-	if (ticks % TIME_SLICE == 0){
-		recalc_mlfqs();
-         	/*m_priority(thread_current());*/
-	}
-  }
 
   struct thread *t = thread_current ();
 
@@ -562,8 +547,8 @@ calc_load_avg (void)
 
 	struct fixed_point t1;
 	t1.value = 59;
-	t1 = fixed_div_int (t1, 60);
 	t1 = mult_fixed (t1, load_average);
+	t1 = fixed_div_int (t1, 60);
 	
 	int temp = list_size (&ready_list);
 	if (thread_current() != idle_thread){
