@@ -227,6 +227,11 @@ thread_create (const char *name, int priority,
   /* Add to run queue. */
   thread_unblock (t);
 
+  if (thread_mlfqs){
+  	m_priority ();
+	return tid;
+  }
+	
   //Verify that the current thread is highest priority
   verify_current_thread_highest(t);
 
