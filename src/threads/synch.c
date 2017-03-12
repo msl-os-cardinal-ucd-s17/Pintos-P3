@@ -116,12 +116,10 @@ void
 sema_up (struct semaphore *sema) 
 {
   enum intr_level old_level;
-  struct thread *t = NULL;
-
+  old_level = intr_disable ();
   ASSERT (sema != NULL);
 
-  old_level = intr_disable ();
-
+  struct thread *t = NULL;
   if (!list_empty (&sema->waiters)) 
   {
   	list_sort(&sema->waiters, thread_priority_less, NULL);
@@ -214,7 +212,7 @@ lock_acquire (struct lock *lock)
   
   enum intr_level old_level = intr_disable();
 
-  if (lock->holder != NULL)
+  if ((!(thread_mlfqs)) && (lock->holder != NULL))
   {
   	thread_current ()->blocking_lock = lock;
   	list_insert_ordered(&((lock->holder)->donor_list), &(thread_current()->donor_elem), thread_priority_less, NULL);
@@ -267,14 +265,16 @@ lock_release (struct lock *lock)
 {
   ASSERT (lock != NULL);
   ASSERT (lock_held_by_current_thread (lock));
-  struct thread *lock_blocked_thread;
-  struct list_elem *next_lock_blocked_thread_elem;
+
 
   enum intr_level old_level = intr_disable ();
+  struct thread *lock_blocked_thread;
+  struct list_elem *lock_blocked_thread_elem = list_begin (&(thread_current ()->donor_list));
+  struct list_elem *next_lock_blocked_thread_elem;
   lock->holder = NULL;
 
   // Iterate through all of the current thread's donators to unblock them from the released lock.
-  for (struct list_elem *lock_blocked_thread_elem = list_begin (&(thread_current ()->donor_list)); lock_blocked_thread_elem != list_end (&(thread_current ()->donor_list));)
+  while (lock_blocked_thread_elem != list_end (&(thread_current ()->donor_list)))
   {
     lock_blocked_thread = list_entry(lock_blocked_thread_elem, struct thread, donor_elem);
     next_lock_blocked_thread_elem = list_next(lock_blocked_thread_elem);
@@ -285,7 +285,7 @@ lock_release (struct lock *lock)
     lock_blocked_thread_elem = next_lock_blocked_thread_elem;
   }
   
-  // Resets the current thread's effective_priority to its regular priority.
+  // Updates the priority.
   thread_priority_synchronize();
 
   sema_up (&lock->semaphore);

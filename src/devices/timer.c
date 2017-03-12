@@ -91,17 +91,19 @@ timer_elapsed (int64_t then)
 void
 timer_sleep (int64_t ticks) 
 {
-  int64_t start = timer_ticks ();
-  struct thread *current_t = thread_current();
+
 
   // Make sure interrupts are on before putting thread to sleep
   ASSERT (intr_get_level () == INTR_ON);
 
-  intr_disable();
+  enum intr_level old_level = intr_disable();
+  struct thread *current_t = thread_current();
+  int64_t start = timer_ticks ();
   current_t->wake_up_time = start + ticks; // set wake up for thread
   add_sleeping_thread(current_t);
-  intr_enable();
+
   sema_down(&(current_t->sleep_sema));
+  intr_set_level(old_level);
 }
 
 /* Sleeps for approximately MS milliseconds.  Interrupts must be
@@ -180,23 +182,24 @@ timer_interrupt (struct intr_frame *args UNUSED)
 {
   ticks++;
   thread_tick ();
-  test_sleeping_thread();
-   
-   if (thread_mlfqs){
-	   /* Increment recent_cpu for currently running on each timer tick */
-	   increment_recent_cpu ();
-        
-	   /* recalculate system load average */
-	   if (ticks % TIMER_FREQ == 0){
-         	calc_load_avg();
-	   }
-	  
-	   /* recalculate priority on fourth tick */  
-	   if (ticks % TIME_SLICE == 0){
-		   recalc_mlfqs();
-         /*m_priority(thread_current());*/
-	   }
-  }    
+  if (thread_mlfqs)
+  {
+    /* Increment recent_cpu for currently running on each timer tick */
+    increment_recent_cpu ();
+          
+    /* recalculate system load average */
+    if (ticks % TIMER_FREQ == 0){
+            calc_load_avg();
+    }
+      
+    /* recalculate priority on fourth tick */  
+    if (ticks % TIME_SLICE == 0){
+      recalc_mlfqs();
+            /*m_priority(thread_current());*/
+    }
+  }
+
+  test_sleeping_thread(ticks);
 }
 
 /* Returns true if LOOPS iterations waits for more than one timer
