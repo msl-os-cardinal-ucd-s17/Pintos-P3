@@ -183,6 +183,8 @@ timer_interrupt (struct intr_frame *args UNUSED)
   test_sleeping_thread();
    
    if (thread_mlfqs){
+	   enum intr_level old_level = intr_disable ();
+	   
 	   /* Increment recent_cpu for currently running on each timer tick */
 	   increment_recent_cpu ();
         
@@ -194,8 +196,10 @@ timer_interrupt (struct intr_frame *args UNUSED)
 	   /* recalculate priority on fourth tick */  
 	   if (ticks % TIME_SLICE == 0){
 		   recalc_mlfqs();
-         /*m_priority(thread_current());*/
+                   /*m_priority(thread_current());*/
 	   }
+	   
+	   intr_set_level (old_level);
   }    
 }
 
