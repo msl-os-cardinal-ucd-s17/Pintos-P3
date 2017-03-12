@@ -17,6 +17,8 @@
 #error TIMER_FREQ <= 1000 recommended
 #endif
 
+#define TIME_SLICE 4
+
 /* Number of timer ticks since OS booted. */
 static int64_t ticks;
 
@@ -99,7 +101,7 @@ timer_sleep (int64_t ticks)
   current_t->wake_up_time = start + ticks; // set wake up for thread
   add_sleeping_thread(current_t);
   intr_enable();
-  sema_down(&(current_t->sleepSema));
+  sema_down(&(current_t->sleep_sema));
 }
 
 /* Sleeps for approximately MS milliseconds.  Interrupts must be
@@ -181,12 +183,18 @@ timer_interrupt (struct intr_frame *args UNUSED)
   test_sleeping_thread();
    
   if (thread_mlfqs){
-	/* Increment recent_cpu on each timer tick */
+	/* Increment recent_cpu for currently running on each timer tick */
 	increment_recent_cpu ();
-     
+        
+	/* recalculate system load average */
 	if (ticks % TIMER_FREQ == 0){
-		/* recalculate load average */
          	calc_load_avg();
+	}
+	  
+	/* recalculate priority on fourth tick */  
+	if (ticks % TIME_SLICE == 0){
+		recalc_mlfqs();
+         	/*m_priority(thread_current());*/
 	}
   }
 }

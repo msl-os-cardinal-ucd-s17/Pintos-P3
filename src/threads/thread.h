@@ -89,22 +89,25 @@ struct thread
     enum thread_status status;          /* Thread state. */
     char name[16];                      /* Name (for debugging purposes). */
     uint8_t *stack;                     /* Saved stack pointer. */
-    int priority;                       /* Priority. */
-    int effective_priority;             /* Priority based on donors*/
+    int priority;                       /* Priority. Can only be modified by thread_set_priority. */
+    int effective_priority;             /* Priority based on donors; can be safely referenced even when ignoring donation. */
+    
     struct list_elem allelem;           /* List element for all threads list. */
 
-    /* Shared between thread.c and synch.c. */
-    struct list_elem elem;              /* List element. */
+    /* Shared between thread.c and synch.c */
+    struct list_elem elem;              /* List element. References an element in the ready_list OR the semaphore waiting list, never both. */
+    struct list_elem sleep_elem;
+    struct semaphore sleep_sema;
+    struct lock *blocking_lock;         /* Points to the lock acquired within synch.c */
 
-    // **************************************************
-    int nice; 				/* Nice value */
-    int recent_cpu;			/* Rececent CPU */
+    struct list donor_list;             /* List of donor threads; each list_elem is a donor_elem of another thread. */
+    struct list_elem donor_elem;        /* List element that allows this thread to be referenced in another thread's donor_list. */
+    struct thread *donee;               /* Points to the thread that's receiving an immediate donation from this thread. */
     
-    // ****************************************************************
-    struct list_elem sleepElem;
+    /* MLFQS data members */
+    int nice; 				                  /* Nice value */
+    int recent_cpu;			                /* Rececent CPU */
     
-    struct semaphore sleepSema;
-
     // Value of OS ticks when the thread should wake up
     int64_t wake_up_time;
 
@@ -149,21 +152,36 @@ void thread_foreach (thread_action_func *, void *);
 
 int thread_get_priority (void);
 void thread_set_priority (int);
+void thread_donate_priority (void);
 
 int thread_get_nice (void);
 void thread_set_nice (int);
 int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
 void calc_load_avg (void);
+void calc_recent_cpu (struct thread *t);
 void increment_recent_cpu (void);
-void m_priority(struct thread *);
-void test_sleeping_thread(void);
-void add_sleeping_thread(struct thread *);
 
-void add_thread_ready_priority_list(struct thread*);
-void add_thread_sema_priority_list(struct thread*, struct semaphore*);
-void add_thread_cond_priority_list(struct list_elem*, struct condition*);
-void sort_thread_sema_priority_list(struct semaphore*);
-void verify_current_thread_highest(struct thread*);
+void m_priority (struct thread *);
+void test_sleeping_thread (void);
+void add_sleeping_thread (struct thread *);
+
+void add_thread_ready_priority_list (struct thread*);
+void add_thread_sema_priority_list (struct thread*, struct semaphore*);
+void sort_thread_sema_priority_list (struct semaphore*);
+void verify_current_thread_highest (void);
+void recalc_mlfqs (void);
+bool thread_priority_less (const struct list_elem *, const struct list_elem *, void *);
+
+void m_priority(struct thread *);
+void recalc_mlfqs (void);
+void test_sleeping_thread (void);
+void add_sleeping_thread (struct thread *);
+
+void add_thread_ready_priority_list (struct thread*);
+void add_thread_sema_priority_list (struct thread*, struct semaphore*);
+void sort_thread_sema_priority_list (struct semaphore*);
+void thread_priority_synchronize (void);
+void verify_current_thread_highest (void);
 
 #endif /* threads/thread.h */
