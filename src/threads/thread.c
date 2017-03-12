@@ -559,7 +559,7 @@ calc_load_avg (void)
 	struct fixed_point t2;
 	t2.value = temp;
 	t2 = fixed_div_int (t2, 60);
-	load_average = fixed_to_int_roundInt(add_fixed (t1, t2));
+	load_average = fixed_to_int_round0(add_fixed (t1, t2));
 
 }
 
