@@ -74,7 +74,7 @@ static unsigned thread_ticks;   /* # of timer ticks since last yield. */
 bool thread_mlfqs;
 
 /* System load average */
-int load_average;
+struct fixed_point load_average;
 
 static void kernel_thread (thread_func *, void *aux);
 
@@ -114,7 +114,7 @@ thread_init (void)
   list_init (&sleep_list);
 
   /* Set initial load average to 0 */
-  load_average = 0;
+  load_average.value = 0;
 
   /* Set up a thread structure for the running thread. */
   initial_thread = running_thread ();
@@ -477,9 +477,7 @@ int
 thread_get_load_avg (void) 
 {
   ASSERT(thread_mlfqs);
-  struct fixed_point load;
-  load.value = load_average;
-  return fixed_to_int_roundInt (fixed_mult_int (load, 100));
+  return fixed_to_int_roundInt (fixed_mult_int (load_average, 100));
 }
 
 /* Returns 100 times the current thread's recent_cpu value. */
@@ -549,7 +547,7 @@ calc_load_avg (void)
 	struct fixed_point t1;
 	t1.value = 59;
 	t1 = fixed_div_int (t1, 60);
-	t1 = fixed_mult_int (t1, load_average);
+	t1 = mult_fixed (t1, load_average);
 	
 	int temp = list_size (&ready_list);
 	if (thread_current() != idle_thread){
@@ -561,7 +559,7 @@ calc_load_avg (void)
 	t2 = fixed_div_int (t2, 60);
 
 	t1 = add_fixed (t1, t2);
-	load_average = fixed_to_int_roundInt(t1);
+	load_average = t1;
 
 }
 
@@ -576,10 +574,11 @@ calc_recent_cpu (struct thread *t)
 		return;
 	}
 	
-	int temp = load_average * 2;
 	struct fixed_point t1;
-	t1.value = temp;
-	t1 = div_fixed (t1, fixed_plus_int(t1, 1));
+	struct fixed_point t1_divisor; 
+	t1 = fixed_mult_int(load_average, 2);
+	t1_divisor = fixed_plus_int(t1, 1);
+	t1 = div_fixed (t1, t1_divisor);
 	int t2 = t->recent_cpu + t->nice;
 	t1 = fixed_plus_int (t1, t2);
 
