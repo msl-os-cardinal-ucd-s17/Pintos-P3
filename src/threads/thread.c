@@ -739,6 +739,10 @@ void sort_thread_sema_priority_list(struct semaphore*sema) {
 void verify_current_thread_highest(struct thread*t) {
   struct thread *current_thread = thread_current();
   if(current_thread->priority < t->priority) {
-    thread_yield();
+    if(!intr_context()){
+      thread_yield();
+    } else {
+      intr_yield_on_return();
+    }
   }
 }
