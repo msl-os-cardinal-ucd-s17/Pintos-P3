@@ -482,7 +482,16 @@ calc_load_avg (void)
 	t1 = add_fixed (t1, t2);
 	load_average = fixed_to_int_round0(t1);
 
+}
 
+/* Increment recent CPU */
+void
+increment_recent_cpu (void)
+{
+	if (thread_current() == idle_thread){
+		return;
+	}
+	thread_current()->recent_cpu += 1;
 }
 
 /* Idle thread.  Executes when no other thread is ready to run.
