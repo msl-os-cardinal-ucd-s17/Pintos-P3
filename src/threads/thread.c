@@ -113,6 +113,10 @@ thread_init (void)
   list_init (&ready_list);
   list_init (&all_list);
   list_init (&sleep_list);
+
+  /* Set initial load average to 0 */
+  load_average = 0;
+	
   /* Set up a thread structure for the running thread. */
   initial_thread = running_thread ();
   init_thread (initial_thread, "main", PRI_DEFAULT);
@@ -135,9 +139,6 @@ thread_start (void)
 
   /* Wait for the idle thread to initialize idle_thread. */
   sema_down (&idle_started);
-	
-  /* Set initial load average to 0 */
-  load_average = 0;
 	
 }
 
