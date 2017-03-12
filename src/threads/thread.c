@@ -146,6 +146,7 @@ thread_start (void)
 void
 thread_tick (void) 
 {
+
   struct thread *t = thread_current ();
 
   /* Update statistics. */
@@ -469,7 +470,10 @@ int
 thread_get_nice (void) 
 {
   ASSERT(thread_mlfqs);
+  enum intr_level old_level = intr_disable ();
   return thread_current ()->nice;
+  intr_set_level (old_level);
+  
 }
 
 /* Returns 100 times the system load average. */
@@ -477,7 +481,9 @@ int
 thread_get_load_avg (void) 
 {
   ASSERT(thread_mlfqs);
-  return fixed_to_int_roundInt (fixed_mult_int (load_average, 100));
+  enum intr_level old_level = intr_disable ();
+  return fixed_to_int_roundInt( fixed_mult_int(load_average, 100));
+  intr_set_level (old_level);
 }
 
 /* Returns 100 times the current thread's recent_cpu value. */
@@ -485,9 +491,11 @@ int
 thread_get_recent_cpu (void) 
 {
   ASSERT(thread_mlfqs);
+  enum intr_level old_level = intr_disable ();
   struct fixed_point cpu;
   cpu.value = thread_current()->recent_cpu;
   return fixed_to_int_round0 (fixed_mult_int (cpu, 100));
+  intr_set_level (old_level);
 
 }
 
@@ -546,8 +554,8 @@ calc_load_avg (void)
 
 	struct fixed_point t1;
 	t1.value = 59;
-	t1 = fixed_div_int (t1, 60);
 	t1 = mult_fixed (t1, load_average);
+	t1 = fixed_div_int (t1, 60);
 	
 	int temp = list_size (&ready_list);
 	if (thread_current() != idle_thread){
