@@ -478,7 +478,9 @@ int
 thread_get_load_avg (void) 
 {
   ASSERT(thread_mlfqs);
-  return fixed_to_int_roundInt (fixed_mult_int (load_average, 100));
+  int output;
+  output = fixed_to_int_roundInt(load_average);
+  return output*100;
 }
 
 /* Returns 100 times the current thread's recent_cpu value. */
