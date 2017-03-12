@@ -99,7 +99,7 @@ timer_sleep (int64_t ticks)
   current_t->wake_up_time = start + ticks; // set wake up for thread
   add_sleeping_thread(current_t);
   intr_enable();
-  sema_down(&(current_t->sleepSema));
+  sema_down(&(current_t->sleep_sema));
 }
 
 /* Sleeps for approximately MS milliseconds.  Interrupts must be
