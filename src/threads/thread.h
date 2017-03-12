@@ -155,6 +155,7 @@ int thread_get_nice (void);
 void thread_set_nice (int);
 int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
+void calc_load_avg (void)
 void m_priority(struct thread *);
 void test_sleeping_thread(void);
 void add_sleeping_thread(struct thread *);
