@@ -31,14 +31,14 @@ struct fixed_point
 inline struct fixed_point int_to_fixed(int integer)
 {
     struct fixed_point number;
-    number.value = integer * FACTOR;
+    number.value = integer * (FACTOR);
     return number;
 }
 
 // Convert fixed point to integer (round toward 0)
 inline int fixed_to_int_round0(struct fixed_point num)
 {
-    return num.value/FACTOR;
+    return num.value/(FACTOR);
 } 
 
 // Convert fixed point to integer (round to nearest integer)
@@ -46,10 +46,10 @@ inline int fixed_to_int_roundInt(struct fixed_point num)
 {
 
     if (num.value >= 0) {
-        return (num.value + (FACTOR/2))/FACTOR;
+        return (num.value + ((FACTOR)/2))/(FACTOR);
     }
     else {
-        return (num.value - (FACTOR/2))/FACTOR;
+        return (num.value - ((FACTOR)/2))/(FACTOR);
     }
 }
 
@@ -73,7 +73,7 @@ inline struct fixed_point sub_fixed(struct fixed_point fixed1, struct fixed_poin
 inline struct fixed_point fixed_plus_int(struct fixed_point fixed, int integer)
 {
     struct fixed_point number;
-    number.value = fixed.value + (integer * FACTOR);
+    number.value = fixed.value + (integer * (FACTOR));
     return number;
 }
 
@@ -81,7 +81,7 @@ inline struct fixed_point fixed_plus_int(struct fixed_point fixed, int integer)
 inline struct fixed_point fixed_minus_int(struct fixed_point fixed, int integer)
 {
     struct fixed_point number;
-    number.value = fixed.value - (integer * FACTOR);
+    number.value = fixed.value - (integer * (FACTOR));
     return number;
 }
 
@@ -89,7 +89,7 @@ inline struct fixed_point fixed_minus_int(struct fixed_point fixed, int integer)
 inline struct fixed_point mult_fixed(struct fixed_point fixed1, struct fixed_point fixed2)
 {
     struct fixed_point number;
-    number.value = ((int64_t)fixed1.value) * fixed2.value/FACTOR;
+    number.value = (((int64_t)fixed1.value) * fixed2.value)/(FACTOR);
     return number;
 }
 
@@ -105,7 +105,7 @@ inline struct fixed_point fixed_mult_int(struct fixed_point fixed, int integer)
 inline struct fixed_point div_fixed(struct fixed_point fixed1, struct fixed_point fixed2)
 {
     struct fixed_point number;
-    number.value = ((int64_t)fixed1.value) * FACTOR/fixed2.value;
+    number.value = (((int64_t)fixed1.value) * (FACTOR))/fixed2.value;
     return number;
 }
 
