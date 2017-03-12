@@ -488,6 +488,25 @@ calc_load_avg (void)
 
 }
 
+/* Calculate thread's recent CPU */
+/* recent_cpu = (2*load_avg)/(2*load_avg + 1) * recent_cpu + nice  */
+void 
+calc_recent_cpu (struct thread *t)
+{
+	if (t == idle_thread){
+		return;
+	}
+	
+	int temp = load_average * 2;
+	struct fixed_point t1;
+	t1.value = temp;
+	t1 = div_fixed (t1, fixed_plus_int(t1, 1));
+	int t2 = t->recent_cpu + t->nice;
+	t1 = fixed_plus_int (t1, t2);
+
+	t->recent_cpu = fixed_to_int_round0(t1);
+}
+
 /* Increment recent CPU */
 void
 increment_recent_cpu (void)
