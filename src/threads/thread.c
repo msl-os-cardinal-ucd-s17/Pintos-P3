@@ -228,7 +228,7 @@ thread_create (const char *name, int priority,
   thread_unblock (t);
 
   if (thread_mlfqs){
-  	m_priority ();
+  	m_priority (t);
 	return tid;
   }
 	
