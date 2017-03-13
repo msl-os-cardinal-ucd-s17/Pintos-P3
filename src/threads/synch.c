@@ -129,7 +129,10 @@ sema_up (struct semaphore *sema)
 
   sema->value++;
 
-  verify_current_thread_highest();
+  if (!intr_context())
+  {
+    verify_current_thread_highest();
+  }
 
   intr_set_level (old_level);
 }

@@ -4,10 +4,7 @@
 #include <debug.h>
 #include <list.h>
 #include <stdint.h>
-#include "synch.h"
-//#include "threads/fixed-point.h"
-
-
+#include "threads/synch.h"
 
 /* States in a thread's life cycle. */
 enum thread_status
@@ -104,11 +101,10 @@ struct thread
 
     struct list donor_list;             /* List of donor threads; each list_elem is a donor_elem of another thread. */
     struct list_elem donor_elem;        /* List element that allows this thread to be referenced in another thread's donor_list. */
-    struct thread *donee;               /* Points to the thread that's receiving an immediate donation from this thread. */
-    
+
     /* MLFQS data members */
     int nice; 				                  /* Nice value */
-    int recent_cpu;			                /* Rececent CPU */
+    int recent_cpu;			                /* Recent CPU */
     
     // Value of OS ticks when the thread should wake up
     int64_t wake_up_time;
