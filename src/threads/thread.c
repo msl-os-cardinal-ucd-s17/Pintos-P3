@@ -664,7 +664,6 @@ init_thread (struct thread *t, const char *name, int priority)
   }
   list_init (&t->donor_list);
   t->blocking_lock = NULL;
-  t->donee = NULL;
   t->magic = THREAD_MAGIC;
   sema_init(&(t->sleep_sema), 0);
   old_level = intr_disable ();
