@@ -11,7 +11,7 @@
 #include "threads/switch.h"
 #include "threads/synch.h"
 #include "threads/vaddr.h"
-#include "threads/fixed-point.h"
+
 #ifdef USERPROG
 #include "userprog/process.h"
 #endif
@@ -155,25 +155,6 @@ thread_tick (void)
 #endif
   else
     kernel_ticks++;
-	
-  if (thread_mlfqs)
-  {
-    /* Increment recent_cpu for currently running on each timer tick */
-    increment_recent_cpu ();
-          
-    /* recalculate system load average */
-    if (timer_ticks() % TIMER_FREQ == 0)
-    {
-      calc_load_avg();
-      recalc_mlfqs();
-    }
-      
-    /* recalculate priority on fourth tick */  
-    if (timer_ticks() % TIME_SLICE == 0)
-    {
-      m_priority(thread_current());
-    }
-  }
 
   /* Enforce preemption. */
   if (++thread_ticks >= TIME_SLICE)
@@ -478,10 +459,7 @@ int
 thread_get_load_avg (void) 
 {
   ASSERT(thread_mlfqs);
-  enum intr_level old_level = intr_disable ();
-  int load_average_times_hundred = fixed_to_int_roundInt (fixed_mult_int (load_average, 100));
-  intr_set_level (old_level);
-  return load_average_times_hundred;
+  return fixed_to_int_rountInt(fixed_mult_int(load_average,100));
 }
 
 /* Returns 100 times the current thread's recent_cpu value. */
@@ -490,9 +468,10 @@ thread_get_recent_cpu (void)
 {
   ASSERT(thread_mlfqs);
   enum intr_level old_level = intr_disable ();
-  int recent_cpu_times_hundred = thread_current()->recent_cpu * 100;
+  struct fixed_point recent_cpu_times_hundred = fixed_mult_int(thread_current()->recent_cpu, 100);
+  int round_recent_cpu_times_hundred = fixed_to_int_roundInt(recent_cpu_times_hundred);
   intr_set_level (old_level);
-  return recent_cpu_times_hundred;
+  return round_recent_cpu_times_hundred;
 }
 
 /* Calculates thread priority when mlfqs option is set. */
@@ -505,9 +484,9 @@ m_priority(struct thread *t)
   {
     /* Priority = PRI_MAX - (recent_cpu/4) - (nice*2) */
     struct fixed_point term1 = int_to_fixed(PRI_MAX);
-    int term2 = (t->recent_cpu / 4);
+    struct fixed_point term2 = fixed_div_int(t->recent_cpu, 4);
     int term3 = (t->nice * 2);
-    term1 = fixed_minus_int(term1, term2);
+    term1 = sub_fixed(term1, term2);
     term1 = fixed_minus_int(term1, term3);
 
     /* Update thread's priority with result */  
@@ -545,21 +524,22 @@ recalc_mlfqs (void)
 void 
 calc_load_avg (void)
 {
-	ASSERT(thread_mlfqs);
-
-	struct fixed_point term1 = int_to_fixed(59);
-  term1 = fixed_div_int(term1, 60);
+  ASSERT(thread_mlfqs);
+  enum intr_level old_level = intr_disable ();
+	
+  struct fixed_point term1 = int_to_fixed(59);
   term1 = mult_fixed(term1, load_average);
-
+  term1 = fixed_div_int(term1, 60);
+  
   struct fixed_point term2 = int_to_fixed(list_size(&ready_list));
   if (thread_current () != idle_thread)
   {
     term2 = fixed_plus_int(term2, 1);
   }
 
-	term2 = fixed_div_int(term2, 60);
-
-	load_average = add_fixed(term1, term2);
+  term2 = fixed_div_int(term2, 60);
+  load_average = add_fixed(term1, term2);
+  intr_set_level (old_level);
 }
 
 /* Calculate thread's recent CPU */
@@ -575,8 +555,8 @@ calc_recent_cpu (struct thread *t)
     struct fixed_point term2 = fixed_mult_int(load_average, 2);
     term2 = fixed_plus_int(term2, 1);
     term1 = div_fixed(term1, term2);
-    term1 = fixed_mult_int(term1, t->recent_cpu);
-    t->recent_cpu = fixed_to_int_round0(fixed_plus_int(term1, t->nice));
+    term1 = mult_fixed(term1, t->recent_cpu);
+    t->recent_cpu = fixed_plus_int(term1, t->nice);
 	}
 }
 
@@ -588,7 +568,7 @@ increment_recent_cpu (void)
 
 	if (thread_current() != idle_thread)
   {
-    int new_recent_cpu = thread_current ()->recent_cpu + 1;
+    struct fixed_point new_recent_cpu = fixed_plus_int(thread_current ()->recent_cpu, 1);
 		thread_current ()->recent_cpu = new_recent_cpu; 
 	}
 }
@@ -692,7 +672,7 @@ init_thread (struct thread *t, const char *name, int priority)
   list_push_back (&all_list, &t->allelem);
   intr_set_level (old_level);
   t->nice = 0;
-  t->recent_cpu = 0;
+  t->recent_cpu = int_to_fixed(0);
 }
 
 /* Allocates a SIZE-byte frame at the top of thread T's stack and
