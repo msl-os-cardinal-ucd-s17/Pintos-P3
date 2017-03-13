@@ -34,12 +34,12 @@ Tests Passing: 20/27
 >> `struct' member, global or static variable, `typedef', or
 >> enumeration.  Identify the purpose of each in 25 words or less.
 
->> New Globals:
+>> New Globals [in thread.c]:
 
   /* A list of sleeping threads. Sorted into ascending wake up time */
     static struct list sleep_list;
 
->> Additions to struct thread:
+>> Additions to struct thread [in thread.h:]:
 
   /* The OS time when a sleeping thread should wake up */
     int64_t wake_up_time;
@@ -149,7 +149,7 @@ Tests Passing: 20/27
 >> `struct' member, global or static variable, `typedef', or
 >> enumeration.  Identify the purpose of each in 25 words or less.
 
-Additions to struct thread:
+Additions to struct thread [in thread.h]:
 
   /* Priority based on donors; can be safely referenced even when ignoring donation. */
   int effective_priority;
@@ -238,34 +238,34 @@ Additions to struct thread:
 >> enumeration.  Identify the purpose of each in 25 words or less.
 
 
-Additions to struct thread:
+Additions to struct thread [in thread.h]:
 
   /* Niceness value of the thread [-20,+20]. This determines how likely the thread is to
      give up cpu time */
   int nice;
 
   /* The amount of time the thread has recently received from the cpu */
-  int recent_cpu;
+  struct fixed_point recent_cpu;
 
 
 Globals:
-
-  /* An estimate of the number of threads ready to run in the past minute.
+  
+  /* [In thread.c:] An estimate of the number of threads ready to run in the past minute.
      Updated every minute*/
   struct fixed_point load_average;
 
-  /* Number of bits in the upper portion of integer. Represent the integer
+  /* [In fixed_point.h:] Number of bits in the upper portion of integer. Represent the integer
      portion of the number. */
   #define UPPER_BITS 17
 
-  /* Number of bits in the lower portion of integer. Represents the fractional
+  /* [In fixed_point.h:] Number of bits in the lower portion of integer. Represents the fractional
      part of the number */
   #define FRACTIONAL_BITS 14
 
-  /* Conversion factor for changing from integer to fixed point and back */
+  /* [In fixed_point.h:] Conversion factor for changing from integer to fixed point and back */
   #define FACTOR 1<<FRACTIONAL_BITS
 
-  /* A struct to create a layer of abstraction between the integer that
+  /* [In fixed_point.h:] A struct to create a layer of abstraction between the integer that
      holds the actual value and the proper usage of a fixed-point number. */
   struct fixed_point
   {
