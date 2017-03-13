@@ -1,10 +1,11 @@
 #ifndef THREADS_THREAD_H
 #define THREADS_THREAD_H
 
+#include "threads/fixed-point.h"
 #include <debug.h>
 #include <list.h>
 #include <stdint.h>
-#include "synch.h"
+#include "threads/synch.h"
 
 
 /* States in a thread's life cycle. */
@@ -106,7 +107,7 @@ struct thread
     
     /* MLFQS data members */
     int nice; 				                  /* Nice value */
-    int recent_cpu;			                /* Rececent CPU */
+    struct fixed_point recent_cpu;			/* Recent CPU */
     
     // Value of OS ticks when the thread should wake up
     int64_t wake_up_time;

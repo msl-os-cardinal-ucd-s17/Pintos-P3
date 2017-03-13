@@ -91,8 +91,6 @@ timer_elapsed (int64_t then)
 void
 timer_sleep (int64_t ticks) 
 {
-
-
   // Make sure interrupts are on before putting thread to sleep
   ASSERT (intr_get_level () == INTR_ON);
 
@@ -182,26 +180,6 @@ timer_interrupt (struct intr_frame *args UNUSED)
 {
   ticks++;
   thread_tick ();
-  
-  if (thread_mlfqs)
-  {
-    /* Increment recent_cpu for currently running on each timer tick */
-    increment_recent_cpu ();
-          
-    /* recalculate system load average */
-    if (ticks % TIMER_FREQ == 0)
-    {
-      calc_load_avg();
-      recalc_mlfqs();
-    }
-      
-    /* recalculate priority on fourth tick */  
-    if (ticks % TIME_SLICE == 0)
-    {
-      m_priority(thread_current());
-    }
-  }
-
   test_sleeping_thread(ticks);
 }
 

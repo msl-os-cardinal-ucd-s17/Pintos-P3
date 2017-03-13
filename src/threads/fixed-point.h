@@ -1,5 +1,5 @@
-#ifndef THREADS_FIXED_H
-#define THREADS_FIXED_H
+#ifndef THREADS_FIXEDPOINT_H
+#define THREADS_FIXEDPOINT_H
 
 #include <stdint.h>
 
@@ -18,7 +18,7 @@
 /*
     Wrap the fixed point value into a struct to protect from 
     conversion/interpretation errors
- */ 
+*/ 
 struct fixed_point 
 {
     int value;
@@ -53,7 +53,6 @@ int fixed_to_int_round0(struct fixed_point num)
 // Convert fixed point to integer (round to nearest integer)
 int fixed_to_int_roundInt(struct fixed_point num)
 {
-
     if (num.value >= 0) {
         return (num.value + ((FACTOR)/2))/(FACTOR);
     }
@@ -125,6 +124,5 @@ struct fixed_point fixed_div_int(struct fixed_point fixed, int integer)
     number.value = fixed.value/integer;
     return number;
 }
-
 
 #endif /* threads/fixed-point.h */
