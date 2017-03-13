@@ -13,7 +13,7 @@ Rachel Popo <rachel.popo@ucdenver.edu>
 David Ward <david.ward@ucdenver.edu
 
 
-Tests Passing: 20/27
+Tests Passing: 27/27
 
 
 ---- PRELIMINARIES ----
@@ -222,6 +222,9 @@ Additions to struct thread [in thread.h]:
 >> this race?
 
 
+In thread_set_priority(), interrupts
+
+
 
 ---- RATIONALE ----
 
@@ -308,8 +311,10 @@ ticks   A   B   C   A   B   C   to run
 >> C4: How is the way you divided the cost of scheduling between code
 >> inside and outside interrupt context likely to affect performance?
 
-
-
+Our choice to perform valuable load recalculation inside the interrupt_handler may be advised against, but
+we felt that that in doing so, we didn't have to turn interrupts off/on, 
+which could ultimately cause timer ticks to become off, lose incoming events, and cause the computer
+to appear slugglish.
 
 
 ---- RATIONALE ----
