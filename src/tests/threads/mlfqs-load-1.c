@@ -26,8 +26,13 @@ test_mlfqs_load_1 (void)
   msg ("spinning for up to 45 seconds, please wait...");
 
   start_time = timer_ticks ();
+  bool entered = true;
   for (;;) 
     {
+      if(entered && elapsed == 30) {
+        msg("the raw value is %d", returnLoadAverage());
+        entered = false;
+      }
       load_avg = thread_get_load_avg ();
       ASSERT (load_avg >= 0);
       elapsed = timer_elapsed (start_time) / TIMER_FREQ;
@@ -37,8 +42,10 @@ test_mlfqs_load_1 (void)
               load_avg / 100, load_avg % 100, elapsed);
       else if (load_avg > 50)
         break;
-      else if (elapsed > 45)
+      else if (elapsed > 45) {
+        msg("load average constant in debug %d", load_avg);
         fail ("load average stayed below 0.5 for more than 45 seconds");
+      }
     }
 
   if (elapsed < 38)

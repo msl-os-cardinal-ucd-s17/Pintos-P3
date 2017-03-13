@@ -923,3 +923,7 @@ verify_current_thread_highest ()
     }
   }
 }
+
+int returnLoadAverage(){
+  return load_average.value;
+}
