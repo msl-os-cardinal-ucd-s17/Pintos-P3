@@ -4,9 +4,14 @@
 #include "threads/interrupt.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
+#include "devices/shutdown.h"
+#include "lib/user/syscall.h"
 
 static void syscall_handler (struct intr_frame *);
-static bool verify_user_ptr(void*vaddr);
+bool verify_user_ptr(void*vaddr);
+void system_halt(void);
+void system_exit(int status);
+pid_t system_exec(const char*cmd_line);
 
 void
 syscall_init (void) 
@@ -26,6 +31,18 @@ syscall_handler (struct intr_frame *f UNUSED)
   thread_exit ();
 }
 
+void system_halt(void) {
+	shutdown_power_off();
+}
+
+void system_exit(int status) {
+	thread_exit();
+}
+
+pid_t system_exec(const char*cmd_line){
+	pid_t id;
+	return(id);
+}
 
 bool verify_user_ptr(void *vaddr) {
 	bool isValid = 1;
