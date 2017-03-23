@@ -383,15 +383,13 @@ thread_set_priority (int new_priority)
     {
       // If the current thread's priority was upgraded, 
       //  priority inversion could happen on any threads blocked by a lock held by the current_thread.
-      //  Thus, propagate the priority down the current thread's donor_list (if it isn't empty).
+      //  Thus, propagate the priority down the blocked threads (inc. threads blocked by lock chaining).
       thread_donate_priority();
     }
     else
     {
       // Else, if the current thread's priority was potentially downgraded, 
       //   yield to ensure the highest priority thread is executing.
-      // TODO: could current_thread ever potentially be different? 
-      //    (i.e. should we expect the current thread to change following the previous control flow)? 
        verify_current_thread_highest();
     }
   }
@@ -405,7 +403,7 @@ thread_get_priority (void)
   return thread_current ()->effective_priority;
 }
 
-/* Propagate down the current thread's donor list to donate the priority. */
+/* Propagate down the threads who are blocked on a chain of locks. */
 void
 thread_donate_priority (void)
 {

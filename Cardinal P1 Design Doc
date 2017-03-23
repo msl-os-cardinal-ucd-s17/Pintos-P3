@@ -113,10 +113,10 @@ Tests Passing: 27/27
 
         Race conditions are avoided because interrupts are disabled before a
     thread sets it wake time and is added to the sleep list. This way, once
-  timer_sleep() is called for the current thread, its allowed to finish setting
-  its wake_up_time before another thread can access the information. This
+    timer_sleep() is called for the current thread, its allowed to finish setting
+    its wake_up_time before another thread can access the information. This
   way, another thread cannot accidently usurp the start and wake time of another
-  thread leading to both having incorrect wake_up_times.
+    thread leading to both having incorrect wake_up_times.
 
 >> A5: How are race conditions avoided when a timer interrupt occurs
 >> during a call to timer_sleep()?
@@ -124,9 +124,9 @@ Tests Passing: 27/27
         In our implementation timer_sleep() temporarily disables interrupts in
     order to add the thread to the sleep_list. The interrupt won't be serviced
     until the thread has been added and it is safe to do so. Once the sleep_list
-  has reached a stable state then the interrupt handler may resume it's task of
-  testing the threads on the sleep_list. This model must be used because
-  interrupt handlers are not able to sleep and/or acquire locks themselves.
+    has reached a stable state then the interrupt handler may resume it's task of
+    testing the threads on the sleep_list. This model must be used because
+    interrupt handlers are not able to sleep and/or acquire locks themselves.
 
 
 ---- RATIONALE ----
@@ -137,7 +137,11 @@ Tests Passing: 27/27
         The main reason this design was chosen is that it eliminates the
     busy-waiting design. Our goal was to create a solution that was intuitive
     and easy to understand but reduced the cpu overhead associated with busy
-    waiting.
+    waiting. Our initial pass at a design was to handle each instance of 
+    blocking and unblocking a thread manually. The idea with this approach was
+    to reduce the amount of code executing while interrupts were disabled. Upon 
+    review we found that the extra layer of abstraction offered by using a 
+    semaphore greatly simplified our design.
 
 
              PRIORITY SCHEDULING
@@ -163,9 +167,6 @@ Additions to struct thread [in thread.h]:
   /* List element that allows this thread to be referenced in another thread's donor_list. */
   struct list_elem donor_elem;
 
-  /* Points to the thread that's receiving an immediate donation from this thread. */
-  struct thread *donee;
-
 
 
 >> B2: Explain the data structure used to track priority donation.
@@ -173,13 +174,16 @@ Additions to struct thread [in thread.h]:
 >> .png file.)
 
     Priority donation is tracked though a list that each thread maintains. Each
-  time a thread donates it's priority to the current thread it added to the
+  time a thread donates it's priority to the current thread it's added to the
   donor_list. In this way a chain of donations is kept track of for each thread
   that has it's effective priority manipulated.
 
-
-
-
+T1                        T2                        T3 (holds lock)
++----------+              +----------+              +----------+      +---------+
+| High     |---Donates    | Med.     |---Donates    | Low      |      |         |
+| Priority |   priority-->| Priority |   priority   | Priority |----->|  Lock   |
+| Thread   |              | thread   |   from T2--->| Thread   |      |         |
++----------+              +----------+              +----------+      +---------+
 
 
 ---- ALGORITHMS ----
@@ -211,8 +215,12 @@ Additions to struct thread [in thread.h]:
 >> on a lock that a higher-priority thread is waiting for.
 
     When lock_release() is called, the function iterates through all the
-  current threads donors in order to unblock them from the released lock. Then,
-
+  current threads donors in order to unblock them from the released lock. Then, 
+  a function is called to re-synchronize the priorities of the waiting threads
+  which essentially recalculates the donations that need to take place now that 
+  the current thread has released the lock. The result being that the next 
+  thread in line for the lock should have an effective priority equal to the 
+  priority of the highest thread waiting for the lock.
 
 
 ---- SYNCHRONIZATION ----
@@ -221,6 +229,11 @@ Additions to struct thread [in thread.h]:
 >> how your implementation avoids it.  Can you use a lock to avoid
 >> this race?
 
+    A possible race condition in thread_set_priority() occurs when two different
+  higher priority threads are both attempting to donate their effective_priority
+  to the same thread. Our implementation avoids this because a thread acquires 
+  a lock in order to donate it's priority and doesn't release the lock until it
+  has propogated along the entire list of waiting threads.
 
 In thread_set_priority(), interrupts
 
@@ -230,6 +243,11 @@ In thread_set_priority(), interrupts
 
 >> B7: Why did you choose this design?  In what ways is it superior to
 >> another design you considered?
+
+    We chose this design because it made effective use of the data structures
+  already provided within pintos. By making liberal use of the pintos list api
+  we were able to 
+
 
               ADVANCED SCHEDULER
               ==================
@@ -311,10 +329,21 @@ ticks   A   B   C   A   B   C   to run
 >> C4: How is the way you divided the cost of scheduling between code
 >> inside and outside interrupt context likely to affect performance?
 
+<<<<<<< HEAD
 Our choice to perform valuable load recalculation inside the interrupt_handler may be advised against, but
 we felt that that in doing so, we didn't have to turn interrupts off/on, 
 which could ultimately cause timer ticks to become off, lose incoming events, and cause the computer
 to appear slugglish.
+=======
+    Due to the nature of our design there are occasional times when the 
+  interrupt handler is required to perform some lengthy calculations. Fortunately,
+  the bulk of this occurs when recalculating the system load average which only
+  occurs once every 100 timer ticks (once per second). Between this and the 
+  priority calculation which occurs every fourth tick there is bound to be some
+  performance degredation. We reasoned that it was acceptable considering that 
+  the calculations were only being performed on a portion of the timer interrupts.
+
+>>>>>>> 634226ef27f03aee17d14fc1b64a00e16b75eaa3
 
 
 ---- RATIONALE ----
@@ -324,7 +353,9 @@ to appear slugglish.
 >> time to work on this part of the project, how might you choose to
 >> refine or improve your design?
 
-
+    Although the design is functional, given more time we would attempt to 
+  streamline the amount of code that was forced to run in the context of the
+  interrupt handler.    
 
 
 
