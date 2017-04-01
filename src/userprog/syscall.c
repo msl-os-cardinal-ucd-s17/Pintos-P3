@@ -7,11 +7,16 @@
 #include "devices/shutdown.h"
 #include "lib/user/syscall.h"
 
+#define arg0    ((f->esp)-4)
+#define arg1	((f->esp)-8)
+#define arg2	((f->esp)-12)
+
 static void syscall_handler (struct intr_frame *);
 bool verify_user_ptr(void*vaddr);
 void system_halt(void);
 void system_exit(int status);
 pid_t system_exec(const char*cmd_line);
+
 
 void
 syscall_init (void) 
@@ -23,10 +28,43 @@ syscall_init (void)
 static void
 syscall_handler (struct intr_frame *f UNUSED) 
 {
-  printf ("system call!\n");
+  //printf ("system call!\n");
   //Verify that the user provided virtual address is valid
   if(verify_user_ptr(f->esp)) {
 
+  	//Retrieve and handle the System call NUMBER fromt the User Stack
+  	switch(*((int*) f->esp)) {
+  		case SYS_HALT:
+  			system_halt();
+  			break;
+  		case SYS_EXIT:
+  			system_exit(*((int*)arg0));
+  			break;
+  		case SYS_EXEC:
+  			break;
+  		case SYS_WAIT:
+  			break;
+  		case SYS_CREATE:
+  			break;
+  		case SYS_REMOVE:
+  			break;
+  		case SYS_OPEN:
+  			break;
+  		case SYS_FILESIZE:
+  			break;
+  		case SYS_READ:
+  			break;
+  		case SYS_WRITE:
+  			break;
+  		case SYS_SEEK:
+  			break;
+  		case SYS_TELL:
+  			break;
+  		case SYS_CLOSE:
+  			break;
+		default:
+			break;
+  	}
   }
   thread_exit ();
 }
@@ -46,7 +84,7 @@ pid_t system_exec(const char*cmd_line){
 
 bool verify_user_ptr(void *vaddr) {
 	bool isValid = 1;
-	if(is_user_vaddr(vaddr) || (vaddr < ((void*)LOWEST_USER_VADDR))){
+	if(is_user_vaddr(vaddr) && (vaddr < ((void*)LOWEST_USER_VADDR))){
 		isValid = 0;	
 	}
 
