@@ -28,9 +28,9 @@ syscall_init (void)
 static void
 syscall_handler (struct intr_frame *f UNUSED) 
 {
-  //printf ("system call!\n");
   //Verify that the user provided virtual address is valid
   if(verify_user_ptr(f->esp)) {
+  	  printf ("system call number: %d\n", *((int*) f->esp));
 
   	//Retrieve and handle the System call NUMBER fromt the User Stack
   	switch(*((int*) f->esp)) {
