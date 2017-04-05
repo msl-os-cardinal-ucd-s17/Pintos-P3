@@ -90,7 +90,7 @@ struct thread
     uint8_t *stack;                     /* Saved stack pointer. */
     int priority;                       /* Priority. Can only be modified by thread_set_priority. */
     int effective_priority;             /* Priority based on donors; can be safely referenced even when ignoring donation. */
-    
+
     struct list_elem allelem;           /* List element for all threads list. */
 
     /* Shared between thread.c and synch.c */
@@ -105,7 +105,7 @@ struct thread
     /* MLFQS data members */
     int nice; 				                  /* Nice value */
     int recent_cpu;			                /* Recent CPU */
-    
+
     // Value of OS ticks when the thread should wake up
     int64_t wake_up_time;
 

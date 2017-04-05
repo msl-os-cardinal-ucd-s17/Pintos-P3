@@ -15,6 +15,7 @@
 #include "threads/palloc.h"
 #include "filesys/filesys.h"
 static void syscall_handler (struct intr_frame *);
+// static int get_user (const uint8_t *uaddr);
 bool verify_user_ptr(void*vaddr);
 void system_halt(void);
 void system_exit(int status);
@@ -65,15 +66,34 @@ syscall_init (void)
   intr_register_int (0x30, 3, INTR_ON, syscall_handler, "syscall");
 }
 
+/* Reads a byte at user virtual address uaddr
+   uaddr must be below PHYS_BASE.
+   Returns the byte value if successful, -1 if a segfault
+   occured
+ */
+
+// static int get_user (const uint8_t *uaddr)
+// {
+//   int result;
+//   asm ("movl $1f, %0; movzbl %1, %0; 1:"
+//         : "=&a" (result) : "m" (*uaddr));
+//   return result;
+// }
+
 static void
 syscall_handler (struct intr_frame *f UNUSED) 
 {
   //Verify that the user provided virtual address is valid
   if(verify_user_ptr(f->esp)) {
-  	  printf ("system call number: %d\n", *((int*) f->esp));
+    int callNum; // set up a local variable to hold the call number
+    callNum = *((int*)f->esp);
 
+
+    // callNum = get_user((uint8_t*)f->esp); // get the byte at the address in the 
+                                            // kernel space
+  	printf ("system call number: %d\n", callNum);
   	//Retrieve and handle the System call NUMBER fromt the User Stack
-  	switch(*((int*) f->esp)) {
+  	switch(callNum) {
   		case SYS_HALT:
   			system_halt();
   			break;
@@ -104,7 +124,7 @@ syscall_handler (struct intr_frame *f UNUSED)
   			break;
 		default:
 			break;
-  	}
+    }
   }
   thread_exit ();
 }
