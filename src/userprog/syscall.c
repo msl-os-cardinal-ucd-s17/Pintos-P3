@@ -8,9 +8,9 @@
 #include "devices/shutdown.h"
 #include "lib/user/syscall.h"
 
-#define arg0    ((f->esp)-4)
-#define arg1	((f->esp)-8)
-#define arg2	((f->esp)-12)
+#define arg0    ((f->esp)+4)
+#define arg1	((f->esp)+8)
+#define arg2	((f->esp)+12)
 #include "threads/malloc.h"
 #include "threads/palloc.h"
 #include "filesys/filesys.h"
@@ -88,9 +88,6 @@ syscall_handler (struct intr_frame *f UNUSED)
     int callNum; // set up a local variable to hold the call number
     callNum = *((int*)f->esp);
 
-
-    // callNum = get_user((uint8_t*)f->esp); // get the byte at the address in the 
-                                            // kernel space
   	printf ("system call number: %d\n", callNum);
   	//Retrieve and handle the System call NUMBER fromt the User Stack
   	switch(callNum) {
@@ -115,6 +112,7 @@ syscall_handler (struct intr_frame *f UNUSED)
   		case SYS_READ:
   			break;
   		case SYS_WRITE:
+        system_write(*((int*)arg0), arg1, *((unsigned*)arg2));
   			break;
   		case SYS_SEEK:
   			break;
@@ -134,6 +132,7 @@ void system_halt(void) {
 }
 
 void system_exit(int status) {
+    // printf("Status Number: %d\n", status);
     thread_exit();
 }
 
