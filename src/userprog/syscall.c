@@ -96,7 +96,7 @@ syscall_handler (struct intr_frame *f UNUSED)
     int callNum; // set up a local variable to hold the call number
     callNum = *((int*)f->esp);
 
-  	printf ("system call number: %d\n", callNum);
+  	// printf ("system call number: %d\n", callNum);
   	//Retrieve and handle the System call NUMBER fromt the User Stack
   	switch(callNum) {
   		case SYS_HALT:
