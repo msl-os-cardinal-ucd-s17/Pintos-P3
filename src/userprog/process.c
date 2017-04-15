@@ -18,8 +18,6 @@
 #include "threads/thread.h"
 #include "threads/vaddr.h"
 
-#define MAX_ARGUMENTS 10
-
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
 
@@ -506,93 +504,34 @@ setup_stack (void **esp, char **argv, int argc)
       success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
       if (success)
       {
-        *esp = PHYS_BASE;
-        char **save_ptr = NULL;
+        int tmp = argc;
 
-        // The string of characters the result from parsing based on " "
-        char *token = NULL;
-
-        /* Allocate memory in heap for the array of pointers to character arrays generated from the parse command line argument
-          using " " as a delimiter. The max number of arguments is capped at 10, an arbitrary reasonable 
-          bound for the number of arguments that can be encountered. */
-        char **argv = malloc(MAX_ARGUMENTS*sizeof(char*));
-        int index = 0;
-
-        // Assign the first pointer to the base of the stack
-        argv[index] = *esp;
-
-        for (token = strtok_r (file_name, " ", save_ptr); token != NULL; token = strtok_r (NULL, " ", save_ptr))
+        uint32_t *args_array[argc];
+        while (--tmp >= 0)
         {
-          //Increment the stack pointer to move past the length of the last argv 
-          *esp -= strlen(token) + 1;
-
-          //Copy the contents of the string to the stack
-          memcpy(argv[index], token, (strlen(token) +1)); 
-          argv[++index] = *esp-1;
+          *esp = *esp - (strlen(argv[tmp])+1)*sizeof(char);
+          args_array[tmp] = (uint32_t *)*esp;
+          memcpy(*esp, argv[tmp], ((strlen(argv[tmp]))+1));
         }
 
-        //Align the stack pointer on a multiple of 4 for the argument pointers (for faster access)
-        int bytes_to_add = (size_t)(*esp) % 4;
-        uint8_t word_align = 0;
-
-        //Determine if already aligned
-        if (bytes_to_add != 0) 
-        {
-          //Add filler null bytes to align the pointers to follow at a multiple of 4
-          for(int i = 0; i<= bytes_to_add; ++i) 
-          {
-              memcpy(*esp, word_align, sizeof(uint8_t));
-              --(*esp);
-          }
-        }
-
-        //Write the pointers to the token strings to the stack
-        for (int i = (index+bytes_to_add); i >= 0; i++) 
-        { 
-          if (i <= index) 
-          { 
-            //Copy the pointer to the token to the stack
-            memcpy(*esp, argv[i], sizeof(char*));
-          } 
-          else 
-          {
-            memcpy(*esp, NULL, sizeof(char*));
-          }
-
-          //Increment the stack pointer past the string pointer
-          *esp -= sizeof(char*) + 1; 
-        }
-        free(argv);
-        /*
-          int tmp = argc;
-
-          uint32_t *args_array[argc];
-          while (--tmp >= 0)
-          {
-            *esp = *esp - (strlen(argv[tmp])+1)*sizeof(char);
-            args_array[tmp] = (uint32_t *)*esp;
-            memcpy(*esp, argv[tmp], ((strlen(argv[tmp]))+1));
-          }
-
-          *esp = *esp - 4;
-          (*(int *)(*esp)) = 0;
+        *esp = *esp - 4;
+        (*(int *)(*esp)) = 0;
           
-          tmp = argc;
-          while (--tmp >= 0)
-          {
-            *esp = *esp - 4;
-            (*(uint32_t **)(*esp)) = args_array[tmp];
-          }
-
+        tmp = argc;
+        while (--tmp >= 0)
+        {
           *esp = *esp - 4;
-          (*(uintptr_t **)(*esp)) = (*esp + 4);
+          (*(uint32_t **)(*esp)) = args_array[tmp];
+        }
 
-          *esp = *esp - 4;
-          *(int *)(* esp) = argc;
+        *esp = *esp - 4;
+        (*(uintptr_t **)(*esp)) = (*esp + 4);
 
-          *esp = *esp - 4;
-          (*(int *)(*esp)) = 0;
-        */
+        *esp = *esp - 4;
+        *(int *)(* esp) = argc;
+
+        *esp = *esp - 4;
+        (*(int *)(*esp)) = 0;
       }
       else
         palloc_free_page (kpage);
