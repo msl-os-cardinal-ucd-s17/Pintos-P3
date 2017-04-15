@@ -189,6 +189,10 @@ void recalc_mlfqs (void);
 bool thread_priority_less (const struct list_elem *, const struct list_elem *, void *);
 void thread_priority_synchronize (void);
 
+struct thread *get_thread (tid_t tid); /* Get thread by tid from all_list */
+struct thread *get_child (tid_t tid); /* Get thread by tid from thread's child_list */
+void init_synchronization (struct thread *t); /* Initialize synchronization variables */
+
 int returnLoadAverage(void);
 
 #endif /* threads/thread.h */

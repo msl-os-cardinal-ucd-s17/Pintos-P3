@@ -80,13 +80,14 @@ start_process (void *file_name_)
   success = load (file_name, &if_.eip, &if_.esp);
 
   /* If load failed, quit. */
-  sema_up(&thread_current()->load_sema);
   palloc_free_page (file_name);
+
+  sema_up(&thread_current()->load_sema);
 
   if (success)
     thread_current()->load_status = true;
   else 
-    system_exit(-1);
+    thread_exit();
 
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in

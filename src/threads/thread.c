@@ -87,10 +87,6 @@ static void schedule (void);
 void thread_schedule_tail (struct thread *prev);
 static tid_t allocate_tid (void);
 
-struct thread *get_thread (tid_t tid); /* Get thread by tid from all_list */
-struct thread *get_child (tid_t tid); /* Get thread by tid from thread's child_list */
-void init_synchronization (struct thread *t); /* Initialize synchronization variables */
-
 /* Initializes the threading system by transforming the code
    that's currently running into a thread.  This can't work in
    general and it is possible in this case only because loader.S

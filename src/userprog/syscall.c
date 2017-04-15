@@ -6,10 +6,12 @@
 #include "threads/thread.h"
 #include "threads/vaddr.h"
 #include "devices/shutdown.h"
+#include "devices/input.h"
 #include "lib/user/syscall.h"
 #include "threads/malloc.h"
 #include "threads/palloc.h"
 #include "filesys/filesys.h"
+#include "filesys/file.h"
 
 #define arg0  ((f->esp)+4)
 #define arg1	((f->esp)+8)
@@ -283,10 +285,10 @@ void system_exit(int status) {
   thread_exit();
 }
 
-pid_t system_exec(const char*cmd_line){
+pid_t system_exec(const char* cmd_line){
   /* runs executable given by cmd_line */
-  pid_t id;
-  return(id);
+  pid_t process_thread_id = process_execute(cmd_line);
+  return process_thread_id;
 }
 
 int system_wait(pid_t pid) {
