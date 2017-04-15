@@ -41,6 +41,8 @@ static int next_fd(void);
 
 int syscall_args[ARG_MAX]; // three int array, for max number of arguments in syscall
 
+bool get_args(struct intr_frame *f, int *args, int argc);
+
 typedef struct fd_elem fd_entry;
 
 struct fd_elem
@@ -113,7 +115,7 @@ put_user (uint8_t *udst, uint8_t byte)
 }
 
 static void
-syscall_handler (struct intr_frame *f UNUSED) 
+syscall_handler (struct intr_frame *f) 
 {
   int syscall_return_value = -1;
   bool valid_user_args = false;
