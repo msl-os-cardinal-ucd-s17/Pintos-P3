@@ -119,8 +119,8 @@ struct thread
 
     struct file *executable;    /* File structure for executable user program */
 
-    struct list child_list;   /* List of children - use for syscall synchronization*/
-    struct list_elem child_elem;        /* List elem for storing thread as a child*/
+    struct list child_list;   /* List of children - use for syscall synchronization */
+    struct list_elem child_elem;        /* List elem for storing thread as a child */
     bool alive;       /* Flag for thread status */
     bool parent_alive;      /* Flag for parent status */
 
