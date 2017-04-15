@@ -7,15 +7,16 @@
 #include "threads/vaddr.h"
 #include "devices/shutdown.h"
 #include "lib/user/syscall.h"
+#include "threads/malloc.h"
+#include "threads/palloc.h"
+#include "filesys/filesys.h"
 
 #define arg0  ((f->esp)+4)
 #define arg1	((f->esp)+8)
 #define arg2	((f->esp)+12)
-#include "threads/malloc.h"
-#include "threads/palloc.h"
-#include "filesys/filesys.h"
+
 static void syscall_handler (struct intr_frame *);
-// static int get_user (const uint8_t *uaddr);
+static int get_user (const uint8_t *uaddr);
 bool verify_user_ptr(void*vaddr);
 
 /* System call function prototypes */
@@ -38,7 +39,8 @@ static int next_fd(void);
 
 typedef struct fd_elem fd_entry;
 
-struct fd_elem{
+struct fd_elem
+{
    int fd;
    struct file* file;
    struct list_elem elem;
@@ -62,7 +64,9 @@ static struct fd_elem* find_fd(int fd){
    return fde;
 }
 
-static int next_fd(void){
+static int 
+next_fd (void)
+{
    return thread_current()->fd_count++;
 }
 
@@ -77,72 +81,129 @@ syscall_init (void)
 /* Reads a byte at user virtual address uaddr
    uaddr must be below PHYS_BASE.
    Returns the byte value if successful, -1 if a segfault
-   occured
- */
+   occured */
 
-// static int get_user (const uint8_t *uaddr)
-// {
-//   int result;
-//   asm ("movl $1f, %0; movzbl %1, %0; 1:"
-//         : "=&a" (result) : "m" (*uaddr));
-//   return result;
-// }
+static int
+get_user (const uint8_t *uaddr)
+{
+  int result;
+  asm ("movl $1f, %0; movzbl %1, %0; 1:"
+        : "=&a" (result) : "m" (*uaddr));
+  return result;
+}
+
+/* Writes BYTE to user address UDST.
+UDST must be below PHYS_BASE.
+Returns true if successful, false if a segfault occurred. */
+static bool
+put_user (uint8_t *udst, uint8_t byte)
+{
+  int error_code;
+  asm ("movl $1f, %0; movb %b2, %1; 1:"
+        : "=&a" (error_code), "=m" (*udst) : "q" (byte));
+  return error_code != -1;
+}
 
 static void
 syscall_handler (struct intr_frame *f UNUSED) 
 {
-  //Verify that the user provided virtual address is valid
-  if(verify_user_ptr(f->esp)) {
-    int callNum; // set up a local variable to hold the call number
-    callNum = *((int*)f->esp);
+  int syscall_return_value = -1;
 
-  	// printf ("system call number: %d\n", callNum);
-  	//Retrieve and handle the System call NUMBER fromt the User Stack
-  	switch(callNum) {
+  // Verify that the user provided virtual address is valid
+  if (verify_user_ptr (f->esp)) 
+  {
+    // Retrieve and handle the System call NUMBER fromt the User Stack
+    int callNum = *((int*)f->esp);
+
+  	switch (callNum) 
+    {
   		case SYS_HALT:
   			system_halt();
+        syscall_return_value = 0;
   			break;
   		case SYS_EXIT:
-  			system_exit(*(int*)arg0);
+        if (verify_user_ptr (arg0))
+        {
+          system_exit(*((int*)arg0));
+          syscall_return_value = 0; 
+        }
   			break;
   		case SYS_EXEC:
-        system_exec((char*)arg0);
+        if (verify_user_ptr (arg0))
+        {
+          syscall_return_value = (int) system_exec((const char *)arg0);
+        }
   			break;
   		case SYS_WAIT:
-        system_wait(*(pid_t*)arg0);
+        if (verify_user_ptr (arg0))
+        {
+          syscall_return_value = system_wait(*(int *)arg0);
+        }
   			break;
   		case SYS_CREATE:
-        system_create((char*)arg0, *(unsigned*)arg1);
+        if (verify_user_ptr (arg0) && verify_user_ptr (arg1))
+        {
+          syscall_return_value = (int) system_create((char*)arg0, *(unsigned*)arg1);
+        }
   			break;
   		case SYS_REMOVE:
-        system_remove((char*)arg0);
+        if (verify_user_ptr (arg0))
+        {
+          syscall_return_value = (int) system_remove((char*)arg0);
+        }
   			break;
   		case SYS_OPEN:
-        system_open((char*)arg0);//(const char *file);
-  			break;
+        if (verify_user_ptr (arg0))
+        {
+          syscall_return_value = system_open(*((int *)arg0));
+        }
+        break;
   		case SYS_FILESIZE:
-        system_filesize(*(int*)arg0);
+        if (verify_user_ptr (arg0))
+        {
+          syscall_return_value = system_filesize(*(int *)arg0);
+        }
         break;
       case SYS_READ:
-        system_read(*(int*)arg0, arg1, *(unsigned*)arg2);
+        if (verify_user_ptr (arg0) && verify_user_ptr (arg1) && verify_user_ptr (arg2))
+        {
+          syscall_return_value = system_read(*(int*)arg0, arg1, *(unsigned*)arg2);
+        }
   			break;
   		case SYS_WRITE:
-        system_write(*((int*)arg0), arg1, *((unsigned*)arg2));
+        if (verify_user_ptr(arg0) && verify_user_ptr(arg1) && verify_user_ptr(arg2))
+        {
+          syscall_return_value = system_write(*(int *)(arg0), *(char **)(arg1), *(unsigned *)(arg2));
+        }
   			break;
   		case SYS_SEEK:
-        system_seek(*(int*)arg0, *(unsigned*)arg1);    
+        if (verify_user_ptr(arg0) && verify_user_ptr(arg1))
+        {
+          system_seek(*(int*)arg0, *(unsigned*)arg1); 
+          syscall_return_value = 0;
+        }
   			break;
   		case SYS_TELL:
-        system_tell(*(int*)arg0);
+        if (verify_user_ptr(arg0))
+        {
+          syscall_return_value = (int) system_tell(*(int*)arg0);
+        }
   			break;
   		case SYS_CLOSE:
-        system_close(*(int*)arg0); //(int fd);
+        system_close(*(int*)arg0);
+        syscall_return_value = 0;
   			break;
 		default:
 			break;
     }
   }
-  thread_exit ();
+
+  if (syscall_return_value == -1)
+  {
+    thread_exit();
+  }
+
+  f->eax = syscall_return_value;
 }
 
 void system_halt(void) {
@@ -151,9 +212,47 @@ void system_halt(void) {
 }
 
 void system_exit(int status) {
-    // printf("Status Number: %d\n", status);
-    /* Terminates current user program and returns status to the kernel */
-    thread_exit();
+  struct thread *t = thread_current();
+  printf("%s: exit(%d)\n", t->name, status);
+
+  struct list_elem *e;
+
+  /* Check for dead children*/
+  for (e = list_begin(&t->child_list); e != list_end(&t->child_list);){
+    struct thread *child = list_entry(e, struct thread, child_elem);
+    child->parent_alive = false;
+    /* If child isn't alive, free memory */
+    if (!child->alive){
+      e = list_remove(&child->child_elem);
+      free(child);
+    }
+    else{
+      e = list_next(e);
+    }
+  }
+  
+  /* If parent is alive, update thread's status and signal parent with sema_up */
+  if (t->parent_alive){
+    t->alive = false;
+    t->exit_status = status;
+    sema_up(&t->wait_sema);
+  }
+  else {
+    /* If parent is dead, free memory */
+    list_remove(&t->child_elem);
+    free(t);
+  }
+
+  /* Free files */
+  for (e = list_begin(&t->fd_list); e != list_end(&t->fd_list);){
+    struct fd_elem *fde = list_entry(e, struct fd_elem, elem);
+    file_close(fde->file);
+    e = list_remove(&fde->elem);
+    free(fde);
+  }
+
+  /* Lastly, call thread exit */
+  thread_exit();
 }
 
 pid_t system_exec(const char*cmd_line){
@@ -163,7 +262,8 @@ pid_t system_exec(const char*cmd_line){
 }
 
 int system_wait(pid_t pid) {
-  printf("sys_wait not implemented");
+  int status = process_wait(pid); 
+  return status;
 }
 
 bool system_create(const char *file, unsigned initial_size) {
@@ -200,7 +300,12 @@ int system_open(const char *file){
 }
 
 int system_filesize(int fd) {
-  printf("sys_filesize not implemented");
+  if (find_fd(fd) != NULL)
+  {
+    struct fd_elem *fde = find_fd(fd);
+    return file_length(fde->file);
+  }
+  return -1;
 }
 
 int system_read(int fd, void *buffer, unsigned size) {
