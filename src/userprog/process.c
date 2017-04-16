@@ -92,6 +92,8 @@ deferred_down (char *sys_call_down, int status_down)
       return return_value;
     }
   }
+
+  NOT_REACHED ();
 }
 
 static void 
@@ -391,18 +393,14 @@ load (const char *file_name, void (**eip) (void), void **esp)
   char fname_copy[MAX_FILE_NAME_LENGTH];
   strlcpy(fname_copy, file_name, MAX_FILE_NAME_LENGTH);
   char *argv[MAX_ARGS];
-  int argc;
+  int argc = 1;
   
   /* Extract the arguments */
-  char *tmp, *tkn;
-  argv[0] = strtok_r(fname_copy, " ", &tmp);
-  argc = 1;
-  tkn = strtok_r(NULL, " ", &tmp);
-  while (tkn != NULL)
+  char *save_ptr, *token;
+  argv[0] = strtok_r(fname_copy, " ", &save_ptr);
+  while((token = strtok_r(NULL, " ", &save_ptr))!=NULL)
   {
-    argv[argc] = tkn;
-    tkn = strtok_r(NULL, " ", &tmp);
-    ++argc;
+    argv[argc++] = token;
   }
 
   /* Allocate and activate page directory. */

@@ -219,7 +219,6 @@ exit (int status)
   thread_exit (status);
 }
 
-
 static int
 exec_wrapper(struct intr_frame *f)
 {
