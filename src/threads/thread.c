@@ -116,8 +116,6 @@ thread_init (void)
   init_thread (initial_thread, "main", PRI_DEFAULT);
   initial_thread->status = THREAD_RUNNING;
   initial_thread->tid = allocate_tid ();
-
-  init_synchronization (initial_thread);
 }
 
 /* Starts preemptive thread scheduling by enabling interrupts.
@@ -207,9 +205,6 @@ thread_create (const char *name, int priority,
   /* Initialize thread. */
   init_thread (t, name, priority);
   tid = t->tid = allocate_tid ();
-
-  /* Initialize synchronization variables */
-  init_synchronization (t);
 
   old_level = intr_disable();
 
@@ -315,12 +310,12 @@ thread_tid (void)
 /* Deschedules the current thread and destroys it.  Never
    returns to the caller. */
 void
-thread_exit (void) 
+thread_exit (int status) 
 {
   ASSERT (!intr_context ());
 
 #ifdef USERPROG
-  process_exit ();
+  process_exit (status);
 #endif
 
   /* Remove thread from all threads list, set our status to dying,
@@ -621,7 +616,7 @@ kernel_thread (thread_func *function, void *aux)
 
   intr_enable ();       /* The scheduler runs with interrupts off. */
   function (aux);       /* Execute the thread function. */
-  thread_exit ();       /* If function() returns, kill the thread. */
+  thread_exit (0);       /* If function() returns, kill the thread. */
 }
 
 /* Returns the running thread. */
@@ -906,7 +901,7 @@ verify_current_thread_highest ()
 }
 
 int 
-returnLoadAverage()
+returnLoadAverage ()
 {
   return load_average.value;
 }
@@ -915,7 +910,9 @@ returnLoadAverage()
    Necessary for updating variables for threads other than thread_current
    Returns null if tid doesn't exist in alL_list
 */
-struct thread *get_thread(tid_t tid){
+struct thread *
+get_thread(tid_t tid)
+{
   struct list_elem *e;
   struct thread *found_thread = NULL;
   enum intr_level old_level;
@@ -931,45 +928,4 @@ struct thread *get_thread(tid_t tid){
 
   intr_set_level (old_level);
   return found_thread;
-}
-
-/* Get child thread from child_list by thread ID
-   Returns null if tid doesn't exist in current thread's child list
-*/
-struct thread *get_child(tid_t tid){
-  struct list_elem *e;
-  struct thread *t = thread_current();
-  
-  for (e = list_begin (&t->child_list); e != list_end (&t->child_list); e = list_next (e)){
-    struct thread *child_thread = list_entry (e, struct thread, child_elem);
-    if (child_thread->tid == tid){
-      return child_thread;
-    }
-  }
-  
-  return NULL;
-}
-
-/* Initialize synchronization variables for thread.
-   Used in thread_init and thread_create functions. 
- */
-void 
-init_synchronization (struct thread *t)
-{
-  t->alive = true;
-  t->parent_alive = true;
-  t->waited = false;
-  t->load_status = false;
-  t->exit_status = -1;
-  
-  list_init(&t->child_list);
-  sema_init(&t->wait_sema, 0);
-  sema_init(&t->load_sema, 0);
- 
-
-  /* If current thread has initilized child list, insert child elem in list*/
-  if (&thread_current()->child_list != NULL)
-  {
-    list_push_back(&thread_current()->child_list, &t->child_elem);
-  }
 }

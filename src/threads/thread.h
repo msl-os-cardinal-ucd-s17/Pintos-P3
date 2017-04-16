@@ -117,6 +117,7 @@ struct thread
     struct list fd_list;                /* List of open files. */
     int fd_count;                       /* Open file counter. */
 
+    char *program_name;         /* Name of program intended to be run as a process */
     struct file *executable;    /* File structure for executable user program */
 
     struct list child_list;   /* List of children - use for syscall synchronization */
@@ -158,7 +159,7 @@ struct thread *thread_current (void);
 tid_t thread_tid (void);
 const char *thread_name (void);
 
-void thread_exit (void) NO_RETURN;
+void thread_exit (int) NO_RETURN;
 void thread_yield (void);
 
 /* Performs some operation on thread t, given auxiliary data AUX. */
@@ -191,7 +192,6 @@ void thread_priority_synchronize (void);
 
 struct thread *get_thread (tid_t tid); /* Get thread by tid from all_list */
 struct thread *get_child (tid_t tid); /* Get thread by tid from thread's child_list */
-void init_synchronization (struct thread *t); /* Initialize synchronization variables */
 
 int returnLoadAverage(void);
 

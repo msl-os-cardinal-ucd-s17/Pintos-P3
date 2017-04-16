@@ -12,92 +12,60 @@
 #include "threads/palloc.h"
 #include "filesys/filesys.h"
 #include "filesys/file.h"
-
-#define arg0  ((f->esp)+4)
-#define arg1	((f->esp)+8)
-#define arg2	((f->esp)+12)
+#include <string.h>
 
 static void syscall_handler (struct intr_frame *);
 static int get_user (const uint8_t *uaddr);
-bool verify_user_ptr(void*vaddr);
+bool verify_user_ptr(void *vaddr, uint8_t argc);
 
 /* System call function prototypes */
-void system_halt(void);
-void system_exit(int status);
-pid_t system_exec(const char*cmd_line);
-int system_wait(pid_t pid);
-bool system_create(const char *file, unsigned initial_size);
-bool system_remove(const char *file);
-int system_open(const char *file);
-int system_filesize(int fd);
-int system_read(int fd, void *buffer, unsigned size);
-int system_write(int fd, const void *buffer, unsigned size);
-void system_seek(int fd, unsigned position);
-unsigned system_tell(int fd);
-void system_close(int fd);
+void halt(void);
+void exit(int status);
+pid_t exec(const char*cmd_line);
+int wait(pid_t pid);
+bool create(const char *file, unsigned initial_size);
+bool remove(const char *file);
+int open(const char *file);
+int filesize(int fd);
+int read(int fd, void *buffer, unsigned size);
+int write(int fd, const void *buffer, unsigned size);
+void seek(int fd, unsigned position);
+unsigned tell(int fd);
+void close(int fd);
 
-static struct fd_elem* find_fd(int fd);
-static int next_fd(void);
+/* Since the return value of the call doesn't necessarily indicate success in executing the system call (i.e. wait), we desynchronize the value stored in the frame pointer's EAX from the success of the call. */
+static int exit_wrapper(struct intr_frame *f);
+static int exec_wrapper(struct intr_frame *f);
+static int wait_wrapper(struct intr_frame *f);
+static int create_wrapper(struct intr_frame *f);
+static int remove_wrapper(struct intr_frame *f);
+static int open_wrapper(struct intr_frame *f);
+static int filesize_wrapper(struct intr_frame *f);
+static int read_wrapper(struct intr_frame *f);
+static int write_wrapper(struct intr_frame *f);
+static int seek_wrapper(struct intr_frame *f);
+static int tell_wrapper(struct intr_frame *f);
+static int close_wrapper(struct intr_frame *f);
 
-#define ARG_MAX 3
-
-int syscall_args[ARG_MAX]; // three int array, for max number of arguments in syscall
-
-bool get_args(struct intr_frame *f, int *args, int argc);
-
-typedef struct fd_elem fd_entry;
-
-struct fd_elem
-{
-   int fd;
-   struct file* file;
-   struct list_elem elem;
-};
-
-struct lock file_lock; // lock for synchronizing access to filesys functions 
-
-// Check current thread's list of open files for fd
-static struct fd_elem* find_fd(int fd)
-{
-   struct list_elem *e;
-   struct fd_elem *fde = NULL;
-   struct list *fd_elems = &thread_current()->fd_list;
-
-   for (e = list_begin(fd_elems); e != list_end(fd_elems); e = list_next(e))
-   {
-      struct fd_elem *t = list_entry (e, struct fd_elem, elem);
-      if (t->fd == fd)
-      {
-         fde = t;
-         break;
-      }
-   }
-
-   return fde;
-}
-
-static int 
-next_fd (void)
-{
-   return thread_current()->fd_count++;
-}
-
+#define MAX_ARGS 3
 
 void
 syscall_init (void) 
 {
-	/*Need to Implement Syncronization*/
   intr_register_int (0x30, 3, INTR_ON, syscall_handler, "syscall");
 }
 
 /* Reads a byte at user virtual address uaddr
    uaddr must be below PHYS_BASE.
-   Returns the byte value if successful, -1 if a segfault
-   occured */
+   Returns the byte value if successful, 
+   -1 if the virtual address is >= PHYS_BASE or if segfault occured */
 
 static int
 get_user (const uint8_t *uaddr)
 {
+  if (!is_user_vaddr(uaddr))
+    return -1;
+
   int result;
   asm ("movl $1f, %0; movzbl %1, %0; 1:"
         : "=&a" (result) : "m" (*uaddr));
@@ -105,119 +73,118 @@ get_user (const uint8_t *uaddr)
 }
 
 /* Writes BYTE to user address UDST.
-UDST must be below PHYS_BASE.
-Returns true if successful, false if a segfault occurred. */
+   UDST must be below PHYS_BASE.
+  Returns true if successful, false if the user address is >= PHYS_BASE or if segfault occurred. */
 static bool
 put_user (uint8_t *udst, uint8_t byte)
 {
+  if (!is_user_vaddr(udst))
+    return false;
+
   int error_code;
   asm ("movl $1f, %0; movb %b2, %1; 1:"
         : "=&a" (error_code), "=m" (*udst) : "q" (byte));
   return error_code != -1;
 }
 
+static bool 
+is_valid_string (void * str)
+{
+  int ch = -1;
+  while((ch=get_user((uint8_t*)str++))!='\0' && ch!=-1);
+    if(ch == '\0')
+      return true;
+    else
+      return false;
+}
+
 static void
 syscall_handler (struct intr_frame *f) 
 {
   int syscall_return_value = -1;
-  bool valid_user_args = false;
+
   // Verify that the user provided virtual address is valid
-  if (verify_user_ptr (f->esp)) 
+  if (verify_user_ptr (f->esp, 4)) 
   {
-    // Retrieve and handle the System call NUMBER fromt the User Stack
+    // Retrieve and handle the System call NUMBER on top of the User Stack
     int callNum = *((int*)f->esp);
 
   	switch (callNum) 
     {
   		case SYS_HALT:
-  			system_halt();
+  			halt();
         syscall_return_value = 0;
   			break;
   		case SYS_EXIT:
-        valid_user_args = get_args(f, syscall_args, 1);
-        if (valid_user_args)
+        if (verify_user_ptr ((f->esp + 4), 4))
         {
-          system_exit(syscall_args[0]);
-          syscall_return_value = 0; 
+          syscall_return_value = exit_wrapper(f); 
         }
   			break;
   		case SYS_EXEC:
-        valid_user_args = get_args(f, syscall_args, 1);
-        if (valid_user_args)
+        if (verify_user_ptr ((f->esp + 4), 4))
         {
-          syscall_return_value = (int) system_exec((char *)syscall_args[0]);
+          syscall_return_value = exec_wrapper(f);
         }
   			break;
   		case SYS_WAIT:
-        valid_user_args = get_args(f, syscall_args, 1);
-        if (valid_user_args)
+        if (verify_user_ptr ((f->esp + 4), 4))
         {
-          syscall_return_value = system_wait(*(pid_t*)syscall_args[0]);
+          syscall_return_value = wait_wrapper(f);
         }
   			break;
   		case SYS_CREATE:
-        valid_user_args = get_args(f, syscall_args, 2);
-        if (valid_user_args)
+        if (verify_user_ptr ((f->esp + 4), 8))
         {
-          syscall_return_value = (int) system_create((char*)syscall_args[0], (unsigned) syscall_args[1]);
+          syscall_return_value = create_wrapper(f);
         }
   			break;
   		case SYS_REMOVE:
-        valid_user_args = get_args(f, syscall_args, 1);
-        if (valid_user_args)
+        if (verify_user_ptr ((f->esp + 4), 4))
         {
-          syscall_return_value = (int) system_remove((char*) syscall_args[0]);
+          syscall_return_value = remove_wrapper(f);
         }
   			break;
   		case SYS_OPEN:
-        valid_user_args = get_args(f, syscall_args, 1);
-        if (valid_user_args)
+        if (verify_user_ptr ((f->esp + 4), 4))
         {
-          syscall_return_value = system_open((char*) syscall_args[0]);
+          syscall_return_value = open_wrapper(f);
         }
         break;
   		case SYS_FILESIZE:
-        valid_user_args = get_args(f, syscall_args, 1);
-        if (valid_user_args)
+        if (verify_user_ptr ((f->esp + 4), 4))
         {
-          syscall_return_value = system_filesize(syscall_args[0]);
+          syscall_return_value = filesize_wrapper(f);
         }
         break;
       case SYS_READ:
-        valid_user_args = get_args(f, syscall_args, 3);
-        if (valid_user_args)
+        if (verify_user_ptr ((f->esp + 4), 12))
         {
-          syscall_return_value = system_read(syscall_args[0], (void *)syscall_args[1], (unsigned)syscall_args[2]);
+          syscall_return_value = read_wrapper(f);
         }
   			break;
   		case SYS_WRITE:
-        valid_user_args = get_args(f, syscall_args, 3);
-        if (valid_user_args)
+        if (verify_user_ptr ((f->esp + 4), 12))
         {
-          syscall_return_value = system_write(syscall_args[0], (void*)syscall_args[1], (unsigned)syscall_args[2]);
+          syscall_return_value = write_wrapper(f);
         }
   			break;
   		case SYS_SEEK:
-        valid_user_args = get_args(f, syscall_args, 2);
-        if (valid_user_args)
+        if (verify_user_ptr ((f->esp + 4), 8))
         {
-          system_seek(syscall_args[0], (unsigned)syscall_args[1]); 
-          syscall_return_value = 0;
+          syscall_return_value = seek_wrapper(f);
         }
   			break;
   		case SYS_TELL:
-        valid_user_args = get_args(f, syscall_args, 1);
-        if (valid_user_args)
+        if (verify_user_ptr ((f->esp + 4), 4))
         {
-          syscall_return_value = (int) system_tell(syscall_args[0]);
+          syscall_return_value = tell_wrapper(f);
         }
   			break;
   		case SYS_CLOSE:
-        valid_user_args = get_args(f, syscall_args, 1);
-        if (valid_user_args)
+        if (verify_user_ptr ((f->esp + 4), 4))
         {
-          system_close(syscall_args[0]);
-          syscall_return_value = 0;
+          syscall_return_value = close_wrapper(f);
         }
   			break;
 		  default:
@@ -227,119 +194,153 @@ syscall_handler (struct intr_frame *f)
 
   if (syscall_return_value == -1)
   {
-    thread_exit();
+    thread_exit (-1);
+    return;
   }
-
-  f->eax = syscall_return_value;
 }
 
-void system_halt(void) {
+void 
+halt (void) {
   /* Terminates pintos */
 	shutdown_power_off();
 }
 
-void system_exit(int status) {
-  struct thread *t = thread_current();
-  printf("%s: exit(%d)\n", t->name, status);
-
-  struct list_elem *e;
-
-  /* Check for dead children*/
-  for (e = list_begin(&t->child_list); e != list_end(&t->child_list);)
-  {
-    struct thread *child = list_entry(e, struct thread, child_elem);
-    child->parent_alive = false;
-    /* If child isn't alive, free memory */
-    if (!child->alive){
-      e = list_remove(&child->child_elem);
-      free(child);
-    }
-    else
-    {
-      e = list_next(e);
-    }
-  }
-  
-  /* If parent is alive, update thread's status and signal parent with sema_up */
-  if (t->parent_alive)
-  {
-    t->alive = false;
-    t->exit_status = status;
-    sema_up(&t->wait_sema);
-  }
-  else 
-  {
-    /* If parent is dead, free memory */
-    list_remove(&t->child_elem);
-    free(t);
-  }
-
-  /* Free files */
-  for (e = list_begin(&t->fd_list); e != list_end(&t->fd_list);)
-  {
-    struct fd_elem *fde = list_entry(e, struct fd_elem, elem);
-    file_close(fde->file);
-    e = list_remove(&fde->elem);
-    free(fde);
-  }
-
-  /* Lastly, call thread exit */
-  thread_exit();
+static int
+exit_wrapper(struct intr_frame *f)
+{
+  exit (*((int*)f->esp+1));
+  return 0;
 }
 
-pid_t system_exec(const char* cmd_line){
-  /* runs executable given by cmd_line */
-  pid_t process_thread_id = process_execute(cmd_line);
-  return process_thread_id;
+void 
+exit (int status) 
+{
+  // The actual exit routine will be handled through process_exit (status) called by thread_exit (status).
+  thread_exit (status);
 }
 
-int system_wait(pid_t pid) {
+
+static int
+exec_wrapper(struct intr_frame *f)
+{
+  char *command_string = *(char **)(f->esp + 4);
+  if (!is_valid_string(command_string))
+    return -1;
+
+  int length_of_command_string = strlen(command_string);
+  if (length_of_command_string >= PGSIZE || length_of_command_string == 0 || command_string[0] == ' ')
+    return -1;
+
+  f->eax = exec (command_string);
+  return 0;
+}
+
+pid_t 
+exec (const char* cmd_line)
+{
+  return process_execute(cmd_line);
+}
+
+static int
+wait_wrapper(struct intr_frame *f)
+{
+  f->eax = wait (*((int*)f->esp+1));
+  return 0;
+}
+
+int 
+wait (pid_t pid) 
+{
   int status = process_wait(pid); 
   return status;
 }
 
-bool system_create(const char *file, unsigned initial_size) {
-  // need to check that file is a valid user address
-  
-  lock_acquire(&file_lock);
-  bool fileCreate = filesys_create (file, (off_t)initial_size);
-  lock_release(&file_lock);
-  return fileCreate;
+static int
+create_wrapper(struct intr_frame *f)
+{
+  char *file_name_from_frame = (*(char **)(f->esp + 4));
+  unsigned initial_size_from_frame = (*(int *)(f->esp + 8));
+
+  if (!is_valid_string(file_name_from_frame))
+    return -1;
+
+  f->eax = create(file_name_from_frame, initial_size_from_frame);
+  return 0;
 }
 
-bool system_remove(const char *file) {
-  // need to check file is valid user address
-  lock_acquire(&file_lock);
-  bool fileRemove = filesys_remove(file);
-  lock_release(&file_lock);
-  return fileRemove;
+bool 
+create (const char *file, unsigned initial_size) 
+{
+  bool is_file_created = filesys_create (file, initial_size);
+  return is_file_created;
 }
 
-int system_open(const char *file){
-   struct file *f = filesys_open(file);
-   if (f == NULL){
-      return -1;
-   }
+static int
+remove_wrapper(struct intr_frame *f)
+{
+  char *file_name_from_frame = *(char **)(f->esp + 4);
+  if (!is_valid_string(file_name_from_frame))
+    return -1;
 
-   // Create new file descriptor
-   struct fd_elem *fde = malloc (sizeof(struct fd_elem));
-   if (fde == NULL){
-      return -1;
-   }
-
-   // Increment file descriptor
-   fde->fd = next_fd(); 
-   // Save file with fd struct
-   fde->file = f;
-   // Add to threads open file list
-   list_push_back(&thread_current()->fd_list, &fde->elem);
-
-   // Return file descriptor
-   return fde->fd;
-
+  f->eax = remove (file_name_from_frame);
+  return 0;
 }
 
-int system_filesize(int fd) {
+bool 
+remove (const char *file) 
+{
+  bool is_file_removed = filesys_remove (file);
+  return is_file_removed;
+}
+
+static int
+open_wrapper(struct intr_frame *f)
+{
+  char *file_name_from_frame = *(char **)(f->esp + 4);
+  if (!is_valid_string(file_name_from_frame))
+    return -1;
+
+  f->eax = open(file_name_from_frame);
+  return 0;
+}
+
+int 
+open (const char *file)
+{
+  struct file *f = filesys_open(file);
+  if (f == NULL){
+    return -1;
+  }
+
+  // Create new file descriptor
+  struct fd_elem *fde = malloc (sizeof(struct fd_elem));
+  if (fde == NULL)
+  {
+    return -1;
+  }
+
+  // Increment file descriptor
+  fde->fd = next_fd(); 
+  // Save file with fd struct
+  fde->file = f;
+  // Add to threads open file list
+  list_push_back(&thread_current()->fd_list, &fde->elem);
+
+  // Return file descriptor
+  return fde->fd;
+}
+
+static int
+filesize_wrapper(struct intr_frame *f)
+{
+  int fd = *(int *)(f->esp + 4);
+  f->eax = filesize(fd);
+  return 0;
+}
+
+int 
+filesize (int fd) 
+{
   if (find_fd(fd) != NULL)
   {
     struct fd_elem *fde = find_fd(fd);
@@ -348,124 +349,134 @@ int system_filesize(int fd) {
   return -1;
 }
 
-int system_read(int fd, void *buffer, unsigned size) {
-  // If fd == 0, read from keyboard
-  lock_acquire(&file_lock);
-  if (fd == STDIN_FILENO) {
-    uint8_t *tmp_buffer = (uint8_t *) buffer;
-    for(unsigned i = 0; i < size; i++) {
-      tmp_buffer[i] = input_getc();
-      // (uint8_t *) buffer[i] = input_getc();
-    }
-    return size;
-  }
-  
-  // Otherwise read from a file
-  else 
+static int
+read_wrapper(struct intr_frame *f)
+{
+  int fd_from_frame = *(int *)(f->esp + 4);
+  void *buffer_from_frame = *(char**)(f->esp + 8);
+  unsigned size_from_frame = *(unsigned *)(f->esp + 12);
+  if (!verify_user_ptr(buffer_from_frame, 1) || !verify_user_ptr(buffer_from_frame + size_from_frame, 1)) 
   {
-    struct file* readFile = find_fd(fd)->file;
-    
-    if (readFile != NULL) {
-      int bytesRead = file_read(readFile, buffer, size);
-      lock_release(&file_lock);
-      return bytesRead;
-    }
-    else {
-      return -1; // file not found
-    }
+    return -1;
+  }
+
+  f->eax = read(fd_from_frame, buffer_from_frame, size_from_frame);
+  return 0;
+}
+
+int 
+read (int fd, void *buffer, unsigned size) 
+{
+  if (find_fd(fd) != NULL)
+  {
+    struct fd_elem *fd_elem = find_fd(fd);
+    return file_read(fd_elem->file, buffer, size);
+  }
+  return -1;
+}
+
+static int
+write_wrapper(struct intr_frame *f)
+{
+  int fd_from_frame = *(int *)(f->esp + 4);
+  void *buffer_from_frame = *(char**)(f->esp + 8);
+  unsigned size_from_frame = *(unsigned *)(f->esp + 12);
+  if (!verify_user_ptr(buffer_from_frame, 1) || !verify_user_ptr(buffer_from_frame + size_from_frame, 1)){
+    return -1;
+  }
+
+  f->eax = write(fd_from_frame, buffer_from_frame, size_from_frame);
+  return 0;
+}
+
+int 
+write (int fd, const void *buffer, unsigned size)
+{
+  // Write to console
+  if (fd == STDOUT_FILENO)
+  {
+    putbuf((char *)buffer, (size_t)size);
+    return (int)size;
+  }
+  else if (find_fd(fd) != NULL)
+  {
+    return (int)file_write(find_fd(fd)->file, buffer, size);
+  }
+
+  return -1;
+}
+
+static int
+seek_wrapper(struct intr_frame *f)
+{
+  int fd_from_frame = *(int *)(f->esp + 4);
+  unsigned position_from_frame = *(unsigned *)(f->esp + 8);
+  seek(fd_from_frame, position_from_frame);
+  return 0;
+}
+
+void 
+seek (int fd, unsigned position) 
+{
+  if (find_fd(fd) != NULL)
+  {
+    struct fd_elem *fd_elem = find_fd(fd);
+    file_seek(fd_elem->file, position);
   }
 }
 
-int system_write(int fd, const void *buffer, unsigned size){
-   // Write to console
-   if (fd == STDOUT_FILENO)
-   {
-      if (size <= 300){
-         putbuf((char *)buffer, (size_t) size);
-      }
-      else {
-         unsigned t_size = size;
-         while (t_size > 300){
-            putbuf((char *)buffer, (size_t) t_size);
-            t_size -= 300;
-         }
-         putbuf((char *)buffer, (size_t) t_size);
-      }
-      return (int)size;
-   }
-   // Write to file
-   if (find_fd(fd) != NULL)
-   {
-      int bytes_written = file_write(find_fd(fd)->file, buffer, size);
-      return bytes_written;
-   }
-   else 
-   {
-      // File not found
-      return -1;
-   }
+static int
+tell_wrapper(struct intr_frame *f)
+{
+  int fd = *(int *)(f->esp + 4);
+  f->eax = tell (fd);
+  return 0;
 }
 
-void system_seek(int fd, unsigned position) {
-  struct file* file = find_fd(fd)->file;
-  
-  lock_acquire(&file_lock);
-  file_seek (file, (off_t)position);
-  lock_release(&file_lock);  
+unsigned 
+tell (int fd) 
+{
+  if (find_fd(fd) != NULL)
+  {
+    struct fd_elem *fd_elem = find_fd(fd);
+    return file_tell(fd_elem->file);
+  }
+  return -1;
 }
 
-unsigned system_tell(int fd) {
-  struct file* file = find_fd(fd)->file;
-  
-  lock_acquire(&file_lock);
-  unsigned position = (unsigned)file_tell (file);
-  lock_release(&file_lock);
-  
-  return position;
+static int
+close_wrapper(struct intr_frame *f)
+{
+  int fd = *(int *)(f->esp + 4);
+  close (fd);
+  return 0;
 }
 
-void system_close(int fd){
-   if (find_fd(fd) != NULL){
-      struct fd_elem *fde = find_fd(fd);
-      // Close file
-      file_close(fde->file);
-      // Remove from open file list
-      list_remove(&fde->elem);
-      // Free memory
-      free(fde);
-   }
+void 
+close (int fd){
+  if (find_fd(fd) != NULL)
+  {
+    struct fd_elem *fd_elem = find_fd(fd);
+    file_close(fd_elem->file);
+    list_remove(&fd_elem->elem);
+    free(fd_elem);
+  }
 }
 
 bool 
-verify_user_ptr (void *vaddr) 
+verify_user_ptr (void *vaddr, uint8_t number_of_bytes) 
 {
-	bool isValid = 1;
-	if(is_user_vaddr(vaddr) && (vaddr < ((void*)LOWEST_USER_VADDR))){
-		isValid = 0;	
-	}
+	bool is_valid = true;
 
-	return (isValid);
-}
-
-/* Retrieve arguments from stack */
-bool
-get_args (struct intr_frame *f, int *args, int argc) 
-{
-  int *argptr; // pointer to argument
-  bool valid_args = true;
-  for (int i = 0; i < argc; ++i) 
+  /* Increment byte-by-byte through the address to ensure validity. */
+	for (uint8_t i = 0; i < number_of_bytes; ++i)
   {
-    argptr = (int*)f->esp + (4 * i);
-    if (verify_user_ptr((void *)argptr)) 
+    if (get_user (((uint8_t *)vaddr)+i) == -1)
     {
-      args[i] = *argptr; // put the contents of argument pointer into array or args
-    }
-    else 
-    {
-      valid_args = false;
+      is_valid = false;
       break;
     }
   }
 
-  return valid_args;
+	return is_valid;
 }

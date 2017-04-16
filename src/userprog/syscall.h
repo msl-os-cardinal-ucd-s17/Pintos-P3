@@ -11,6 +11,6 @@ to compare validty*/
 #define LOWEST_USER_VADDR 0x08048000
 
 void syscall_init (void);
-bool get_args (struct intr_frame *f, int *args, int argc);
+bool get_args (struct intr_frame *f, int **args, int argc);
 
 #endif /* userprog/syscall.h */

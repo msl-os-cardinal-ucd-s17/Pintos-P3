@@ -17,9 +17,101 @@
 #include "threads/palloc.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
+#include "threads/malloc.h"
+
+#define MAX_FILE_NAME_LENGTH 100
+#define MAX_ARGS 50
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
+static int deferred_down (char *, int);
+static void deferred_up (char *, int, int);
+
+/* To ensure that processes don't erroneously wait or exit, we defer their execution on top of using a semaphore. */
+struct deferred_up_info 
+{
+  int status;
+  char *sys_call;
+  int return_value;
+  struct list_elem elem;
+};
+
+struct deferred_down_info
+{
+  int status;
+  char *sys_call;
+  struct semaphore sema_defer;
+  struct list_elem elem;
+};
+
+static struct list deferred_up_info_list;
+static struct list deferred_down_info_list;
+
+void
+process_initialize_lists (void)
+{
+  list_init(&deferred_up_info_list);
+  list_init(&deferred_down_info_list);
+  list_init(&thread_current()->child_list);
+}
+
+// strcmp(dui->sys_call, sys_call_down) == 0
+static int 
+deferred_down (char *sys_call_down, int status_down)
+{
+  /* Begin by checking if the call has already been made */
+  for (struct list_elem *e = list_begin (&deferred_up_info_list); e != list_end (&deferred_up_info_list); e = list_next (e))
+  {
+    struct deferred_up_info *dui = list_entry (e, struct deferred_up_info, elem);
+    if (dui->sys_call == sys_call_down && dui->status == status_down)
+    {
+      list_remove (e);
+      int dui_return_value = dui->return_value;
+      free (dui);
+      return dui_return_value;
+    }
+  }
+
+  struct deferred_down_info *ddi = malloc(sizeof(struct deferred_down_info));
+  sema_init(&ddi->sema_defer, 0);
+  ddi->status = status_down;
+  ddi->sys_call = sys_call_down;
+  list_push_back(&deferred_down_info_list, &ddi->elem);
+  sema_down(&ddi->sema_defer);
+
+  for (struct list_elem *e = list_begin (&deferred_up_info_list); e != list_end (&deferred_up_info_list); e = list_next (e))
+  {
+    struct deferred_up_info *dui = list_entry (e, struct deferred_up_info, elem);
+    if (dui->sys_call == ddi->sys_call && dui->status == ddi->status)
+    {
+      list_remove(e);
+      list_remove(&ddi->elem);
+      int return_value = dui->return_value;
+      free(dui);
+      free(ddi);
+      return return_value;
+    }
+  }
+}
+
+static void 
+deferred_up (char *sys_call_up, int status_up, int return_value_up) 
+{
+  struct deferred_up_info *dui = malloc(sizeof(struct deferred_up_info));
+  dui->status = status_up;
+  dui->sys_call = sys_call_up;
+  dui->return_value = return_value_up;
+  list_push_back(&deferred_up_info_list, &dui->elem);
+
+  for (struct list_elem *e = list_begin (&deferred_down_info_list); e != list_end (&deferred_down_info_list); e = list_next (e))
+  {
+    struct deferred_down_info *ddi = list_entry (e, struct deferred_down_info, elem);
+    if (strcmp(ddi->sys_call, sys_call_up) == 0 && ddi->status == dui->status)
+    {
+      sema_up(&ddi->sema_defer);
+    }
+  }
+}
 
 /* Starts a new thread running a user program loaded from
    FILENAME.  The new thread may be scheduled (and may even exit)
@@ -39,27 +131,40 @@ process_execute (const char *file_name)
 
   strlcpy (fn_copy, file_name, PGSIZE);
 
+  char *cmd_name = malloc (strlen(fn_copy) + 1);
+  char *cmd_save;
+
+  if (cmd_name == NULL)
+    return TID_ERROR;
+  
+  /* Extract the program name */
+  strlcpy(cmd_name, fn_copy, PGSIZE);
+  cmd_name = strtok_r(cmd_name, " ", &cmd_save);
+
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
   if (tid == TID_ERROR)
   {
     palloc_free_page (fn_copy);
+    free(cmd_name);
     return -1;
   }
 
-  struct thread *t = get_thread(tid);
+  struct thread *t = get_thread (tid);
   t->fd_count = 2;
-  list_init(&t->child_list);
+  t->program_name = cmd_name;
   list_init(&t->fd_list);
-
-  struct thread *child = get_child(tid);
-  sema_down(&child->load_sema);
-
-  /* If child load status hasn't been set to true, didn't load successful - fail */
-  if (!child->load_status)
-    return TID_ERROR;
+  list_init(&t->child_list);
   
-  return tid;
+  int return_tid = deferred_down("exec", tid);
+  if (return_tid != -1)
+  {
+    struct process_id *p = malloc(sizeof(struct process_id));
+    p->pid = return_tid;
+    list_push_back(&thread_current()->child_list, &p->elem);
+  }
+
+  return return_tid;
 }
 
 
@@ -79,15 +184,15 @@ start_process (void *file_name_)
   if_.eflags = FLAG_IF | FLAG_MBS;
   success = load (file_name, &if_.eip, &if_.esp);
 
-  /* If load failed, quit. */
   palloc_free_page (file_name);
 
-  sema_up(&thread_current()->load_sema);
+  if (!success)
+  {
+    deferred_up ("exec", thread_tid(), -1);
+    thread_exit (-1);
+  }
 
-  if (success)
-    thread_current()->load_status = true;
-  else 
-    thread_exit();
+  deferred_up ("exec", thread_tid(), thread_tid());
 
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
@@ -104,39 +209,66 @@ start_process (void *file_name_)
    exception), returns -1.  If TID is invalid or if it was not a
    child of the calling process, or if process_wait() has already
    been successfully called for the given TID, returns -1
-   immediately, without waiting.
+   immediately, without waiting. */
 
-   This function will be implemented in problem 2-2.  For now, it
-   does nothing. */
 int
-process_wait (tid_t child_tid UNUSED) 
+process_wait (tid_t child_tid) 
 {
-  struct thread *child_thread = get_child(child_tid);
+  struct list_elem *e = NULL;
 
-  // Make sure it is a child and thread hasn't already waited for it.
-  if (child_thread != NULL && !child_thread->waited)
+  /* First, check if the current thread has the parent process of the purported child process. */
+  for (e = list_begin (&thread_current()->child_list); e != list_end (&thread_current()->child_list); e = list_next (e))
   {
-    child_thread->waited = true;
-    if (&child_thread->wait_sema != NULL)
-        sema_down (&child_thread->wait_sema);
-    return child_thread->exit_status;
+    if (list_entry(e, struct process_id, elem)->pid == child_tid)
+    {
+      break;
+    }
   }
 
-  return -1;
+  /* If the current thread is the parent, remove the child from the child list so it won't be waited on again. 
+     Else, immediately return with -1.
+   */
+
+  if (e != NULL)
+    list_remove(e);
+  else
+    return -1;
+
+  int exit_status = deferred_down("wait", child_tid);
+  return exit_status;
 }
 
 /* Free the current process's resources. */
 void
-process_exit (void)
+process_exit (int status)
 {
   struct thread *cur = thread_current ();
   uint32_t *pd;
 
-  if (cur->executable)
+  deferred_up("wait", cur->tid, status);
+
+  // If thread is a kernel thread, do not close the process
+  if (thread_tid() == 1)
   {
-    file_close(cur->executable);
-    cur->executable = NULL;
+    return;
   }
+
+  /* Close all open files */
+  for (struct list_elem *e = list_begin(&cur->fd_list); e != list_end(&cur->fd_list);)
+  {
+    struct fd_elem *temp = list_entry(e, struct fd_elem, elem);
+    e = list_next (e);
+    struct fd_elem *fde = find_fd(temp->fd);
+    if (fde != NULL)
+    {
+      file_close(fde->file);
+      list_remove(&fde->elem);
+      free(fde);
+    }
+  }
+
+  file_close(thread_current()->executable);
+  printf("%s: exit(%d)\n", cur->program_name, status);
 
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
@@ -256,15 +388,15 @@ load (const char *file_name, void (**eip) (void), void **esp)
   int i;
 
   /* Copy filename */
-  char fname_copy[100];
-  strlcpy(fname_copy, file_name, 100);
-  char *argv[50];
+  char fname_copy[MAX_FILE_NAME_LENGTH];
+  strlcpy(fname_copy, file_name, MAX_FILE_NAME_LENGTH);
+  char *argv[MAX_ARGS];
   int argc;
+  
+  /* Extract the arguments */
   char *tmp, *tkn;
-
   argv[0] = strtok_r(fname_copy, " ", &tmp);
   argc = 1;
-
   tkn = strtok_r(NULL, " ", &tmp);
   while (tkn != NULL)
   {
@@ -505,6 +637,7 @@ setup_stack (void **esp, char **argv, int argc)
       success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
       if (success)
       {
+        *esp = PHYS_BASE;
         int tmp = argc;
 
         uint32_t *args_array[argc];
@@ -535,7 +668,9 @@ setup_stack (void **esp, char **argv, int argc)
         (*(int *)(*esp)) = 0;
       }
       else
+      {
         palloc_free_page (kpage);
+      }
     }
   return success;
 }
@@ -558,4 +693,30 @@ install_page (void *upage, void *kpage, bool writable)
      address, then map our page there. */
   return (pagedir_get_page (t->pagedir, upage) == NULL
           && pagedir_set_page (t->pagedir, upage, kpage, writable));
+}
+
+// Check current thread's list of open files for fd
+struct fd_elem* find_fd (int fd)
+{
+   struct list_elem *e;
+   struct fd_elem *fde = NULL;
+   struct list *fd_elems = &thread_current()->fd_list;
+
+   for (e = list_begin(fd_elems); e != list_end(fd_elems); e = list_next(e))
+   {
+      struct fd_elem *t = list_entry (e, struct fd_elem, elem);
+      if (t->fd == fd)
+      {
+         fde = t;
+         break;
+      }
+   }
+
+   return fde;
+}
+
+int 
+next_fd (void)
+{
+   return thread_current()->fd_count++;
 }
