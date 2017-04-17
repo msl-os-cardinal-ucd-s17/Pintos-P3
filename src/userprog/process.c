@@ -55,7 +55,6 @@ process_initialize_lists (void)
   list_init(&thread_current()->child_list);
 }
 
-// strcmp(dui->sys_call, sys_call_down) == 0
 static int 
 deferred_down (char *sys_call_down, int status_down)
 {
@@ -90,11 +89,11 @@ deferred_down (char *sys_call_down, int status_down)
       int return_value = dui->return_value;
       free(dui);
       free(ddi);
-      return return_value;
+      break;
     }
   }
 
-  NOT_REACHED ();
+  return return_value;
 }
 
 static void 
@@ -413,7 +412,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
   process_activate ();
 
   /* Open executable file. */
-  file = filesys_open (file_name);
+  file = filesys_open (argv[0]);
   if (file == NULL) 
     {
       printf ("load: %s: open failed\n", file_name);
