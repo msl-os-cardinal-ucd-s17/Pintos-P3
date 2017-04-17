@@ -27,7 +27,7 @@ static bool load (const char *cmdline, void (**eip) (void), void **esp);
 static int deferred_down (char *, int);
 static void deferred_up (char *, int, int);
 
-/* To ensure that processes don't erroneously wait or exit, we defer their execution on top of using a semaphore. */
+/* To ensure that parent processes don't erroneously wait or exit when their child process is dead, we defer the cleanup. */
 struct deferred_up_info 
 {
   int status;
@@ -640,7 +640,7 @@ setup_stack (void **esp, char **argv, int argc)
         *esp = PHYS_BASE;
         int tmp = argc;
 
-        uint32_t *args_array[argc];
+        uint32_t *args_array[argc+1];
         while (--tmp >= 0)
         {
           *esp = *esp - (strlen(argv[tmp])+1)*sizeof(char);
@@ -648,18 +648,27 @@ setup_stack (void **esp, char **argv, int argc)
           memcpy(*esp, argv[tmp], ((strlen(argv[tmp]))+1));
         }
 
-        *esp = *esp - 4;
-        (*(int *)(*esp)) = 0;
-          
-        tmp = argc;
+        /* Sentinel for alignment as detailed on page 37 of the Pintos manual */
+        int remainder = (size_t) (*esp) % 4;
+        uint8_t sentinel = 0;
+        args_array[argc] = sentinel;
+
+        if (remainder > 0)
+        {
+          *esp = *esp - remainder;
+          memcpy(*esp, &args_array[argc], remainder);
+        }
+
+        tmp = argc+1;
         while (--tmp >= 0)
         {
           *esp = *esp - 4;
           (*(uint32_t **)(*esp)) = args_array[tmp];
         }
 
-        *esp = *esp - 4;
-        (*(uintptr_t **)(*esp)) = (*esp + 4);
+        void *first_argv = *esp;
+        *esp = *esp - sizeof(char **);
+        memcpy(*esp, &first_argv, sizeof(char **));
 
         *esp = *esp - 4;
         *(int *)(* esp) = argc;
