@@ -1,17 +1,14 @@
-		     +--------------------------+
-       	       	     |		CS 140		|
-		     | PROJECT 2: USER PROGRAMS	|
-		     | 	   DESIGN DOCUMENT     	|
-		     +--------------------------+
+	     	     +------------------------------------+
+       	       	     |	   CSCI: 3453                     |
+		     | PROJECT 2: USER PROGRAMS    	  |
+		     | 	   DESIGN DOCUMENT     	      	  |
+		     +------------------------------------+
 
 ---- GROUP ----
-
->> Fill in the names and email addresses of your group members.
-
 Brett Gedvilas <brett.gedvilas@ucdenver.edu>
 Joshua McAllister <joshua.mcallister@ucdenver.edu>
 Rachel Popo <rachel.popo@ucdenver.edu>
-David Ward <david.ward@ucdenver.edu
+David Ward <david.ward@ucdenver.edu>
 
 ---- PRELIMINARIES ----
 
@@ -31,37 +28,120 @@ David Ward <david.ward@ucdenver.edu
 >> `struct' member, global or static variable, `typedef', or
 >> enumeration.  Identify the purpose of each in 25 words or less.
 
+Additions to the thread structure [in process.c]
+
+/*limits the size of the file name */
+#define MAX_FILE_NAME_LENGTH 100
+/*limits the number of arguments */
+#define MAX_ARGS 30
+
+
 ---- ALGORITHMS ----
 
 >> A2: Briefly describe how you implemented argument parsing.  How do
 >> you arrange for the elements of argv[] to be in the right order?
 >> How do you avoid overflowing the stack page?
 
+Our implementation parses the command line arguments, which include both the filename of the user program to be executed and (if any) arguments passed to the program. The String.h::strtok_r (char *s, const char *delimiters, char **save_ptr) function parsed the command line input based on the space delimiter. Each of the parsed tokens were placed in a local char** argv pointer, which was ultimately given as an input to the Process.c::setup_stack (void **esp, char **argv, int argc). 
+
+Within the Process.c::setup_stack (void **esp, char **argv, int argc), we write the argv strings to the stack using memcpy.  The order that the strings are written to the stack isn’t necessarily important since we also write the char* pointers that point to the location of each argv string. But the order is maintained for readability and clarity. Following this, each of the strings locations in memory are written in descending order--from argc to 0. Following this is the char**argv. Then argc value. Finally, a faux return address to mimic the x86 calling convention. 
+
+The order of the argv arguments are populated from left to write with the leftmost being in argv[0] and the rightmost in argv[argc -1]. The pointers *(argv) are written in descending order starting with argv[argc-1]. When writing to the stack, word-aligned access to pointers was adhered to. So the parsed strings were made to be on a multiple of 4. This means that there could be filler bytes that are accounted for in another argv argument. 
+
+We prevent the stack page from overflowing by doing a check within our implementation of the system exec function by ensuring that the length of the command string isn’t greater than the size of the virtual page within the Syscall.c::exec_wrapper(struct intr_frame *f) function. If the command string is greater than or equal to the size of the page, the exec command isn’t executed. In addition, we also limit the maximum number of arguments possible for argv. 
+
 ---- RATIONALE ----
 
 >> A3: Why does Pintos implement strtok_r() but not strtok()?
+
+The key difference between strtok_r() and strtok() is that strtok_r() is reentrant (and consequently more thread-safe), meaning that execution of the function can be interrupted and resumed before previous executions have finished. By providing save_ptr as an argument, multiple thread access can resume processing from the correct location. 
 
 >> A4: In Pintos, the kernel separates commands into a executable name
 >> and arguments.  In Unix-like systems, the shell does this
 >> separation.  Identify at least two advantages of the Unix approach.
 
+Minimize unnecessary processing done by the kernel.
+Large string command is given to the kernel could cause to slow down due to the added processing, but if the shell takes care of this worst case is the shell gets hung up or crashes instead of the kernel.
+Added layer of security and error checking
+In scenarios where the executable doesn’t exists, incorrect filename, etc, the shell would save the kernel from accessing the file
+
 			     SYSTEM CALLS
 			     ============
 
+	
 ---- DATA STRUCTURES ----
 
 >> B1: Copy here the declaration of each new or changed `struct' or
 >> `struct' member, global or static variable, `typedef', or
 >> enumeration.  Identify the purpose of each in 25 words or less.
 
+Additions to the thread structure [in thread.h]
+/* List of open files. */
+struct list fd_list; 
+/* List of open files. */
+int fd_count;  
+/* Name of program intended to be run as a process */
+char *program_name; 
+/* File structure for executable user program */
+struct file *executable;
+/* List of children - use for syscall synchronization */
+struct list child_list; 
+
+Additional structs [in process.h]
+
+/*Struct representation of a all the vital components needed to represent a file*/
+struct fd_elem
+{
+   int fd;
+   struct file* file;
+   struct list_elem elem;
+};
+
+/*Struct to keep track of process within misc. lists*/
+struct process_id 
+{
+	int pid;
+	struct list_elem elem;
+};
+
+Additional structs [process.c]
+
+/* To ensure that parent processes don't erroneously wait or exit when their child process is dead, we defer the cleanup. */
+struct deferred_up_info 
+{
+  int status;
+  char *sys_call;
+  int return_value;
+  struct list_elem elem;
+};
+
+/* To ensure that parent processes don't erroneously wait or exit when their child process is dead, we defer the cleanup. */
+struct deferred_down_info
+{
+  int status;
+  char *sys_call;
+  struct semaphore sema_defer;
+  struct list_elem elem;
+};
+
+/*Lists of the structs that help maintain an account of the parent/child process states*/
+static struct list deferred_up_info_list;
+static struct list deferred_down_info_list;
+
+
 >> B2: Describe how file descriptors are associated with open files.
 >> Are file descriptors unique within the entire OS or just within a
 >> single process?
+File descriptors are positive integer values, with 0 and 1 reserved for the console: fd 0 (STDIN_FILENO) is standard input, fd 1 (STDOUT_FILENO) is standard output. Each process has an independent set of file descriptors. When a file is opened more than once, whether by a single process or different processes, each call to open returns a new file descriptor. Different file descriptors for a single file are closed independently in separate calls to close.
 
 ---- ALGORITHMS ----
 
 >> B3: Describe your code for reading and writing user data from the
->> kernel.
+>> kernel. 
+
+For both reading and writing, file system access is synchronized to prevent race conditions. Additionally, all user supplied addresses are verified before accessing with the Syscall.c::verify_user_ptr(). 
+
+Reading user data requires finding the fd_elem to ultimately locate the specific file struct member. It’s after finding this that the file can be read from within the fd_elem struct and the file system lock can be released. Writing user data requires checking to ensure that the fd is not equal to STDOUT_FILENO, which would then write to the screen console buffer. Once again, we locate the fd_elem to locate the file struct member to ultimately access the file within the file system to write to. Before writing, the file system lock is acquired, and after writing the lock is released. In both cases, we return the status of the completion of the task. 
 
 >> B4: Suppose a system call causes a full page (4,096 bytes) of data
 >> to be copied from user space into the kernel.  What is the least
@@ -70,8 +150,13 @@ David Ward <david.ward@ucdenver.edu
 >> for a system call that only copies 2 bytes of data?  Is there room
 >> for improvement in these numbers, and how much?
 
+The number of inspections of the page table is asymptotically bounded to the number of physical frames that the page is mapped to. As such, the minimum number of inspections of the page table will always be one: the page is entirely contiguous. With a full page of data, the maximum number of inspections is 4096 (one per byte). Similar logic follows for a system call that operates on 2 bytes of data: only one inspection is needed if both bytes are contiguous, and two inspections would be needed if they’re on different frames.
+
 >> B5: Briefly describe your implementation of the "wait" system call
 >> and how it interacts with process termination.
+
+
+Our implementation of the “wait” system call heavily relied on extending the functionality of process_wait while simultaneously accounting for parent-child interconnectivity. Firstly, note that each thread maintains a list of child processes that is initiated on process_execute. We first verify that the process executing wait is the parent process of the given child process thread ID. If that’s not the case, then process_wait immediately exits out as the current thread shouldn’t be blocked arbitrarily. Otherwise, if the current thread is executing the parent process and the child ID isn’t NULL, we remove the child process from the parent’s list of children so it won’t be waited on again & we block the current thread using a semaphore called sema_defer. Once the child process is exited via process_exit, all parent processes that were waiting on the child process are unblocked by upping sema_defer.  The semaphores relating to process_wait and process_exit are maintained on two additional lists (deferred_up_info_list and deferred_down_info_list) to ensure that only parent processes specifically waiting on the child process (i.e. not executing some other system call while maintaining the child process) are blocked and unblocked.
 
 >> B6: Any access to user program memory at a user-specified address
 >> can fail due to a bad pointer value.  Such accesses must cause the
@@ -87,12 +172,19 @@ David Ward <david.ward@ucdenver.edu
 >> paragraphs, describe the strategy or strategies you adopted for
 >> managing these issues.  Give an example.
 
+First, user memory is verified first and foremost before continuing with the execution of the system call. We use Syscall.c::verify_user_ptr() religiously to validate user data within the context of both the syscall_handler and other utility functions that manipulate user virtual memory addresses. Once we can assure the memory address resides in the user address space and is valid, then we can continue executing desired code. 
+
+In the event that a user supplies bad memory addresses, 
+
 ---- SYNCHRONIZATION ----
 
 >> B7: The "exec" system call returns -1 if loading the new executable
 >> fails, so it cannot return before the new executable has completed
 >> loading.  How does your code ensure this?  How is the load
 >> success/failure status passed back to the thread that calls "exec"?
+
+
+	Our program currently has two levels to ensuring the system call returns the correct value when executing a file. First, the exec system call is called from within a wrapper function. This affords us the chance to validate that the string passed to the command line corresponds to legitimate executable and arguments. If it fails we can immediately return a -1 without making the actual system call. Then, exec() uses the process_execute() function in order to execute the system call. This way, when a new thread is created to run the executable from within process_execute() we can immediately check to see if an error occured when creating the thread. As soon as we know the thread failed to initialize then we can assume that the process did not load correctly and process_execute() can return -1 that propagates back to the syscall_handler. A successful load operation returns the newly created tid back to the system call function as one might expect.
 
 >> B8: Consider parent process P with child process C.  How do you
 >> ensure proper synchronization and avoid race conditions when P
@@ -101,16 +193,26 @@ David Ward <david.ward@ucdenver.edu
 >> terminates without waiting, before C exits?  After C exits?  Are
 >> there any special cases?
 
+	Our approach to synchronizing these cases took the form of a semaphore to coordinate the exit procedures between a parent and child process. The parent process then performs an action depending on the value and number of references to the semaphore. 
+
+
 ---- RATIONALE ----
 
 >> B9: Why did you choose to implement access to user memory from the
 >> kernel in the way that you did?
+    	
+The main consideration when accessing user memory from the kernel was how to correctly validate pointers being passed from the user space to the kernel. The quick and dirty way to accomplish this would be to simply check to see if a pointer was in a mapped location of user virtual memory. Because pointers can (and often do) reference data that is larger than one byte we chose to implement a check where each byte address is checked to see if it is still valid. This has the added check of making sure we don't access virtual memory outside of the page the current process is operating on. Furthermore, by wrapping the validation logic into one function we provide one clean function call that can be used by all the system call for validating their input arguments.
+   
 
 >> B10: What advantages or disadvantages can you see to your design
 >> for file descriptors?
+The main advantage of our design for file descriptors is that a struct can easily and intuitively store all the information needed for the descriptor which includes a number identifying the file, a struct containing the actual file and a list element to connect it to other open files of the same thread. This implementation then allows allows each thread to keep a list of as many open files as needed. 
 
 >> B11: The default tid_t to pid_t mapping is the identity mapping.
 >> If you changed it, what advantages are there to your approach?
+
+	We saw no need to alter the mapping scheme already implemented in Pintos.
+
 
 			   SURVEY QUESTIONS
 			   ================
@@ -124,14 +226,29 @@ the quarter.
 >> In your opinion, was this assignment, or any one of the three problems
 >> in it, too easy or too hard?  Did it take too long or too little time?
 
+
+The assignment was more difficult than the first assignment, but it wasn’t unjustly so. Our team collectively spent about 100+ hours on it, and we worked until the last minute to join our work properly.
+
 >> Did you find that working on a particular part of the assignment gave
 >> you greater insight into some aspect of OS design?
+
+
+It made us fundamentally understand how user-kernel interconnectivity works & how to prevent user processes from arbitrarily interfering with one another & with the kernel frame.
 
 >> Is there some particular fact or hint we should give students in
 >> future quarters to help them solve the problems?  Conversely, did you
 >> find any of our guidance to be misleading?
 
+
+Thoroughly explaining how to deal with pages would be useful; it took a long time to understand the purpose of get_user and put_user recommended in the Pintos manual, and how integral it was to use them to validate user memory byte-by-byte.
+
 >> Do you have any suggestions for the TAs to more effectively assist
 >> students, either for future quarters or the remaining projects?
 
+
+N/A
+
 >> Any other comments?
+
+Nothing in particular.
+
