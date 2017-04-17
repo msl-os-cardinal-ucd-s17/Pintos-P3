@@ -48,8 +48,13 @@ static int seek_wrapper(struct intr_frame *f);
 static int tell_wrapper(struct intr_frame *f);
 static int close_wrapper(struct intr_frame *f);
 
+<<<<<<< HEAD
+=======
+#define MAX_ARGS 3
+
 static struct lock file_lock;
 
+>>>>>>> e57c16f69c41302b049564ceb0b3268a2c574b21
 void
 syscall_init (void) 
 {
@@ -314,8 +319,13 @@ open (const char *file)
 {
   lock_acquire(&file_lock);
   struct file *f = filesys_open(file);
+<<<<<<< HEAD
+  if (f == NULL)
+  {
+=======
   lock_release(&file_lock);
   if (f == NULL){
+>>>>>>> e57c16f69c41302b049564ceb0b3268a2c574b21
     return -1;
   }
 
@@ -487,12 +497,12 @@ close (int fd){
 }
 
 bool 
-verify_user_ptr (void *vaddr, uint8_t number_of_bytes) 
+verify_user_ptr (void *vaddr, uint8_t argc) 
 {
 	bool is_valid = true;
 
   /* Increment byte-by-byte through the address to ensure validity. */
-	for (uint8_t i = 0; i < number_of_bytes; ++i)
+	for (uint8_t i = 0; i < argc; ++i)
   {
     if (get_user (((uint8_t *)vaddr)+i) == -1)
     {
