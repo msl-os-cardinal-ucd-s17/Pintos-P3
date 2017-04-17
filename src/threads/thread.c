@@ -906,26 +906,28 @@ returnLoadAverage ()
   return load_average.value;
 }
 
-/* Get thread by thread ID
-   Necessary for updating variables for threads other than thread_current
-   Returns null if tid doesn't exist in alL_list
-*/
-struct thread *
-get_thread(tid_t tid)
-{
-  struct list_elem *e;
-  struct thread *found_thread = NULL;
-  enum intr_level old_level;
-  old_level = intr_disable ();
+#ifdef USERPROG
+  /* Get thread by thread ID
+     Necessary for updating variables for threads other than thread_current
+     Returns null if tid doesn't exist in alL_list
+  */
+  struct thread *
+  get_thread(tid_t tid)
+  {
+    struct list_elem *e;
+    struct thread *found_thread = NULL;
+    enum intr_level old_level;
+    old_level = intr_disable ();
 
-  for (e = list_begin (&all_list); e != list_end (&all_list); e = list_next (e)){
-    struct thread *t = list_entry (e, struct thread, allelem);
-    if (tid == t->tid){
-      found_thread = t;
-      break;
-    }
+    for (e = list_begin (&all_list); e != list_end (&all_list); e = list_next (e)){
+      struct thread *t = list_entry (e, struct thread, allelem);
+      if (tid == t->tid){
+       found_thread = t;
+       break;
+     }
+   }
+
+   intr_set_level (old_level);
+   return found_thread;
   }
-
-  intr_set_level (old_level);
-  return found_thread;
-}
+#endif

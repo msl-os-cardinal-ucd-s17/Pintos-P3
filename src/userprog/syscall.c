@@ -33,7 +33,8 @@ void seek(int fd, unsigned position);
 unsigned tell(int fd);
 void close(int fd);
 
-/* Since the return value of the call doesn't necessarily indicate success in executing the system call (i.e. wait), we desynchronize the value stored in the frame pointer's EAX from the success of the call. */
+/* Since the return value of the call doesn't necessarily indicate success in executing the system call (i.e. wait), 
+   we desynchronize the value stored in the frame pointer's EAX from the success of the call. */
 static int exit_wrapper(struct intr_frame *f);
 static int exec_wrapper(struct intr_frame *f);
 static int wait_wrapper(struct intr_frame *f);
@@ -46,8 +47,6 @@ static int write_wrapper(struct intr_frame *f);
 static int seek_wrapper(struct intr_frame *f);
 static int tell_wrapper(struct intr_frame *f);
 static int close_wrapper(struct intr_frame *f);
-
-#define MAX_ARGS 3
 
 void
 syscall_init (void) 
@@ -134,7 +133,7 @@ syscall_handler (struct intr_frame *f)
         }
   			break;
   		case SYS_CREATE:
-        if (verify_user_ptr ((f->esp + 4), 8))
+        if (verify_user_ptr ((f->esp + 4), 4) && verify_user_ptr ((f->esp + 8), 4))
         {
           syscall_return_value = create_wrapper(f);
         }
@@ -158,19 +157,19 @@ syscall_handler (struct intr_frame *f)
         }
         break;
       case SYS_READ:
-        if (verify_user_ptr ((f->esp + 4), 12))
+        if (verify_user_ptr ((f->esp + 4), 4) && verify_user_ptr ((f->esp + 8), 4) && verify_user_ptr ((f->esp + 12), 4))
         {
           syscall_return_value = read_wrapper(f);
         }
   			break;
   		case SYS_WRITE:
-        if (verify_user_ptr ((f->esp + 4), 12))
+        if (verify_user_ptr ((f->esp + 4), 4) && verify_user_ptr ((f->esp + 8), 4) && verify_user_ptr ((f->esp + 12), 4))
         {
           syscall_return_value = write_wrapper(f);
         }
   			break;
   		case SYS_SEEK:
-        if (verify_user_ptr ((f->esp + 4), 8))
+        if (verify_user_ptr ((f->esp + 4), 4) && verify_user_ptr ((f->esp + 8), 4))
         {
           syscall_return_value = seek_wrapper(f);
         }
@@ -307,7 +306,8 @@ int
 open (const char *file)
 {
   struct file *f = filesys_open(file);
-  if (f == NULL){
+  if (f == NULL)
+  {
     return -1;
   }
 
@@ -463,12 +463,12 @@ close (int fd){
 }
 
 bool 
-verify_user_ptr (void *vaddr, uint8_t number_of_bytes) 
+verify_user_ptr (void *vaddr, uint8_t argc) 
 {
 	bool is_valid = true;
 
   /* Increment byte-by-byte through the address to ensure validity. */
-	for (uint8_t i = 0; i < number_of_bytes; ++i)
+	for (uint8_t i = 0; i < argc; ++i)
   {
     if (get_user (((uint8_t *)vaddr)+i) == -1)
     {

@@ -121,17 +121,6 @@ struct thread
     struct file *executable;    /* File structure for executable user program */
 
     struct list child_list;   /* List of children - use for syscall synchronization */
-    struct list_elem child_elem;        /* List elem for storing thread as a child */
-    bool alive;       /* Flag for thread status */
-    bool parent_alive;      /* Flag for parent status */
-
-    bool waited;      /* Synchronization flag - parent can't wait on child twice */
-    struct semaphore wait_sema;   /* Semaphore for wait syscall synchronization */
-
-    bool load_status;     /* Load synchronization - child load status */
-    struct semaphore load_sema;   /* Parent waits on load_sema for child loading */
-
-    int exit_status;      /* Used by parent thread */
 #endif
 
     /* Owned by thread.c. */

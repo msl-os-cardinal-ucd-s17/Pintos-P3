@@ -20,7 +20,7 @@
 #include "threads/malloc.h"
 
 #define MAX_FILE_NAME_LENGTH 100
-#define MAX_ARGS 50
+#define MAX_ARGS 30
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
@@ -59,11 +59,12 @@ process_initialize_lists (void)
 static int 
 deferred_down (char *sys_call_down, int status_down)
 {
+  struct list_elem *e;
   /* Begin by checking if the call has already been made */
-  for (struct list_elem *e = list_begin (&deferred_up_info_list); e != list_end (&deferred_up_info_list); e = list_next (e))
+  for (e = list_begin (&deferred_up_info_list); e != list_end (&deferred_up_info_list); e = list_next (e))
   {
     struct deferred_up_info *dui = list_entry (e, struct deferred_up_info, elem);
-    if (dui->sys_call == sys_call_down && dui->status == status_down)
+    if (strcmp(dui->sys_call, sys_call_down) == 0 && dui->status == status_down)
     {
       list_remove (e);
       int dui_return_value = dui->return_value;
@@ -79,10 +80,10 @@ deferred_down (char *sys_call_down, int status_down)
   list_push_back(&deferred_down_info_list, &ddi->elem);
   sema_down(&ddi->sema_defer);
 
-  for (struct list_elem *e = list_begin (&deferred_up_info_list); e != list_end (&deferred_up_info_list); e = list_next (e))
+  for (e = list_begin (&deferred_up_info_list); e != list_end (&deferred_up_info_list); e = list_next (e))
   {
     struct deferred_up_info *dui = list_entry (e, struct deferred_up_info, elem);
-    if (dui->sys_call == ddi->sys_call && dui->status == ddi->status)
+    if (strcmp(dui->sys_call, ddi->sys_call) == 0 && dui->status == ddi->status)
     {
       list_remove(e);
       list_remove(&ddi->elem);
@@ -104,11 +105,11 @@ deferred_up (char *sys_call_up, int status_up, int return_value_up)
   dui->sys_call = sys_call_up;
   dui->return_value = return_value_up;
   list_push_back(&deferred_up_info_list, &dui->elem);
-
-  for (struct list_elem *e = list_begin (&deferred_down_info_list); e != list_end (&deferred_down_info_list); e = list_next (e))
+  struct list_elem *e;
+  for (e = list_begin (&deferred_down_info_list); e != list_end (&deferred_down_info_list); e = list_next (e))
   {
     struct deferred_down_info *ddi = list_entry (e, struct deferred_down_info, elem);
-    if (strcmp(ddi->sys_call, sys_call_up) == 0 && ddi->status == dui->status)
+    if (ddi->sys_call == sys_call_up && ddi->status == dui->status)
     {
       sema_up(&ddi->sema_defer);
     }
@@ -217,12 +218,14 @@ int
 process_wait (tid_t child_tid) 
 {
   struct list_elem *e = NULL;
+  bool is_thread_parent = false;
 
   /* First, check if the current thread has the parent process of the purported child process. */
   for (e = list_begin (&thread_current()->child_list); e != list_end (&thread_current()->child_list); e = list_next (e))
   {
     if (list_entry(e, struct process_id, elem)->pid == child_tid)
     {
+      is_thread_parent = true;
       break;
     }
   }
@@ -231,13 +234,13 @@ process_wait (tid_t child_tid)
      Else, immediately return with -1.
    */
 
-  if (e != NULL)
-    list_remove(e);
-  else
+  if (!is_thread_parent)
     return -1;
 
-  int exit_status = deferred_down("wait", child_tid);
-  return exit_status;
+  if (e != NULL)
+    list_remove(e);
+
+  return deferred_down("wait", child_tid);
 }
 
 /* Free the current process's resources. */
