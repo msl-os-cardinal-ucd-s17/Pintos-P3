@@ -48,7 +48,7 @@ Our implementation parses the command line arguments, which include both the fil
 
 Within the Process.c::setup_stack (void **esp, char **argv, int argc), we write the argv strings to the stack using memcpy.  The order that the strings are written to the stack isn’t necessarily important since we also write the char* pointers that point to the location of each argv string. But the order is maintained for readability and clarity. Following this, each of the strings locations in memory are written in descending order--from argc to 0. Following this is the char**argv. Then argc value. Finally, a faux return address to mimic the x86 calling convention. 
 
-The order of the argv arguments are populated from left to write with the leftmost being in argv[0] and the rightmost in argv[argc -1]. The pointers *(argv) are written in descending order starting with argv[argc-1]. When writing to the stack, word-aligned access to pointers was adhered to. So the parsed strings were made to be on a multiple of 4. This means that there could be filler bytes that are accounted for in another argv argument. 
+The order of the argv arguments are populated from left to write with the leftmost being in argv[0] and the rightmost in argv[argc -1]. The pointers *(argv) are written in descending order starting with argv[argc-1]. When writing to the stack, word-aligned access to pointers was adhered to. So the parsed strings were made to be on a multiple of 4. This means that there could be filler bytes that are accounted for in an additional argv argument. 
 
 We prevent the stack page from overflowing by doing a check within our implementation of the system exec function by ensuring that the length of the command string isn’t greater than the size of the virtual page within the Syscall.c::exec_wrapper(struct intr_frame *f) function. If the command string is greater than or equal to the size of the page, the exec command isn’t executed. In addition, we also limit the maximum number of arguments possible for argv. 
 
@@ -176,7 +176,7 @@ Our implementation of the “wait” system call heavily relied on extending the
 
 First, user memory is verified first and foremost before continuing with the execution of the system call. We use Syscall.c::verify_user_ptr() religiously to validate user data within the context of both the syscall_handler and other utility functions that manipulate user virtual memory addresses. Once we can assure the memory address resides in the user address space and is valid, then we can continue executing desired code. 
 
-In the event that a user supplies bad memory addresses, 
+In the event that malloc fails or a page fault ocurrs, the process that was executing exits via thread_exit, which begins the process of freeing up resources. For example, if a user supplies an address, the address is verified by calling get_user within the verify_user_ptr function. This will intiate the domino affect of causing a page fault exception and the freeing up resources allocated to the process.
 
 ---- SYNCHRONIZATION ----
 
