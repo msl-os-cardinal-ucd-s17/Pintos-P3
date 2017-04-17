@@ -79,6 +79,8 @@ deferred_down (char *sys_call_down, int status_down)
   list_push_back(&deferred_down_info_list, &ddi->elem);
   sema_down(&ddi->sema_defer);
 
+  int return_value = -1;
+
   for (e = list_begin (&deferred_up_info_list); e != list_end (&deferred_up_info_list); e = list_next (e))
   {
     struct deferred_up_info *dui = list_entry (e, struct deferred_up_info, elem);
@@ -93,6 +95,7 @@ deferred_down (char *sys_call_down, int status_down)
     }
   }
 
+  ASSERT(return_value != -1);
   return return_value;
 }
 
