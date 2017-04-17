@@ -74,21 +74,6 @@ get_user (const uint8_t *uaddr)
   return result;
 }
 
-/* Writes BYTE to user address UDST.
-   UDST must be below PHYS_BASE.
-  Returns true if successful, false if the user address is >= PHYS_BASE or if segfault occurred. */
-static bool
-put_user (uint8_t *udst, uint8_t byte)
-{
-  if (!is_user_vaddr(udst))
-    return false;
-
-  int error_code;
-  asm ("movl $1f, %0; movb %b2, %1; 1:"
-        : "=&a" (error_code), "=m" (*udst) : "q" (byte));
-  return error_code != -1;
-}
-
 static bool 
 is_valid_string (void * str)
 {

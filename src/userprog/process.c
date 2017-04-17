@@ -88,7 +88,7 @@ deferred_down (char *sys_call_down, int status_down)
     {
       list_remove(e);
       list_remove(&ddi->elem);
-      int return_value = dui->return_value;
+      return_value = dui->return_value;
       free(dui);
       free(ddi);
       break;
