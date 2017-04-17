@@ -48,9 +48,14 @@ static int seek_wrapper(struct intr_frame *f);
 static int tell_wrapper(struct intr_frame *f);
 static int close_wrapper(struct intr_frame *f);
 
+#define MAX_ARGS 3
+
+static struct lock file_lock;
+
 void
 syscall_init (void) 
 {
+  lock_init(&file_lock);
   intr_register_int (0x30, 3, INTR_ON, syscall_handler, "syscall");
 }
 
@@ -269,7 +274,9 @@ create_wrapper(struct intr_frame *f)
 bool 
 create (const char *file, unsigned initial_size) 
 {
+  lock_acquire(&file_lock);
   bool is_file_created = filesys_create (file, initial_size);
+  lock_release(&file_lock);
   return is_file_created;
 }
 
@@ -287,7 +294,9 @@ remove_wrapper(struct intr_frame *f)
 bool 
 remove (const char *file) 
 {
+  lock_acquire(&file_lock);
   bool is_file_removed = filesys_remove (file);
+  lock_release(&file_lock);
   return is_file_removed;
 }
 
@@ -305,9 +314,10 @@ open_wrapper(struct intr_frame *f)
 int 
 open (const char *file)
 {
+  lock_acquire(&file_lock);
   struct file *f = filesys_open(file);
-  if (f == NULL)
-  {
+  lock_release(&file_lock);
+  if (f == NULL){
     return -1;
   }
 
@@ -343,7 +353,10 @@ filesize (int fd)
   if (find_fd(fd) != NULL)
   {
     struct fd_elem *fde = find_fd(fd);
-    return file_length(fde->file);
+    lock_acquire(&file_lock);
+    int fl = file_length(fde->file);
+    lock_release(&file_lock);
+    return fl;
   }
   return -1;
 }
@@ -369,7 +382,10 @@ read (int fd, void *buffer, unsigned size)
   if (find_fd(fd) != NULL)
   {
     struct fd_elem *fd_elem = find_fd(fd);
-    return file_read(fd_elem->file, buffer, size);
+    lock_acquire(&file_lock);
+    int fr = file_read(fd_elem->file, buffer, size);
+    lock_release(&file_lock);
+    return fr;
   }
   return -1;
 }
@@ -399,7 +415,10 @@ write (int fd, const void *buffer, unsigned size)
   }
   else if (find_fd(fd) != NULL)
   {
-    return (int)file_write(find_fd(fd)->file, buffer, size);
+    lock_acquire(&file_lock);
+    int fw = (int)file_write(find_fd(fd)->file, buffer, size);
+    lock_release(&file_lock);
+    return fw;
   }
 
   return -1;
@@ -420,7 +439,9 @@ seek (int fd, unsigned position)
   if (find_fd(fd) != NULL)
   {
     struct fd_elem *fd_elem = find_fd(fd);
+    lock_acquire(&file_lock);
     file_seek(fd_elem->file, position);
+    lock_release(&file_lock);
   }
 }
 
@@ -438,7 +459,10 @@ tell (int fd)
   if (find_fd(fd) != NULL)
   {
     struct fd_elem *fd_elem = find_fd(fd);
-    return file_tell(fd_elem->file);
+    lock_acquire(&file_lock);
+    unsigned ft = file_tell(fd_elem->file);
+    lock_release(&file_lock);
+    return ft;
   }
   return -1;
 }
@@ -456,19 +480,21 @@ close (int fd){
   if (find_fd(fd) != NULL)
   {
     struct fd_elem *fd_elem = find_fd(fd);
+    lock_acquire(&file_lock);
     file_close(fd_elem->file);
+    lock_release(&file_lock);
     list_remove(&fd_elem->elem);
     free(fd_elem);
   }
 }
 
 bool 
-verify_user_ptr (void *vaddr, uint8_t argc) 
+verify_user_ptr (void *vaddr, uint8_t number_of_bytes) 
 {
 	bool is_valid = true;
 
   /* Increment byte-by-byte through the address to ensure validity. */
-	for (uint8_t i = 0; i < argc; ++i)
+	for (uint8_t i = 0; i < number_of_bytes; ++i)
   {
     if (get_user (((uint8_t *)vaddr)+i) == -1)
     {
