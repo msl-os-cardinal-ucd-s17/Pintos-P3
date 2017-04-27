@@ -3,8 +3,6 @@
 
 #include "vm/page.h"
 
-class frame
-{
    /* A physical frame. */
   struct frame 
   {
@@ -12,6 +10,5 @@ class frame
     void *base;                 /* Kernel virtual base address. */
     struct page *page;          /* Mapped process page, if any. */
   };
-};
 
 #endif // FRAME_H

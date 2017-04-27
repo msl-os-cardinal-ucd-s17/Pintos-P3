@@ -5,6 +5,7 @@
 #include <list.h>
 #include <stdint.h>
 #include "threads/synch.h"
+#include "vm/page.h"
 
 /* States in a thread's life cycle. */
 enum thread_status
@@ -122,6 +123,9 @@ struct thread
 
     struct list child_list;   /* List of children - use for syscall synchronization */
 #endif
+
+    /*Pages owned by the thread*/
+    struct hash *pages;                 /* Page table. */
 
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
