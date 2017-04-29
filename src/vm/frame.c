@@ -46,3 +46,8 @@ void frame_unlock(struct page *page)
 		lock_release(page_frame->lock);
 	}
 }
+
+void free_frame(struct frame *frame)
+{
+	frame->page = NULL;
+}
