@@ -10,7 +10,7 @@
 
 
 /* Virtual page. */
-struct page 
+struct page
   {
     /* Immutable members. */
     void *addr;                 /* User virtual address. */
@@ -26,7 +26,7 @@ struct page
 
     /* Swap information, protected by frame->lock. */
     //block_sector_t sector;       /* Starting sector of swap area, or -1. */
-    
+
     /* Memory-mapped file information, protected by frame->lock. */
     bool private;               /* False to write back to file,
 	                           true to write back to swap. */
@@ -35,6 +35,7 @@ struct page
     off_t file_bytes;           /* Bytes to read/write, 1...PGSIZE. */
   };
 
+  void page_table_intialization(struct hash*ptr);
 
 
 #endif // PAGE_H
