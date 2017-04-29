@@ -7,6 +7,7 @@
 #include "filesys/file.h"
 #include "vm/frame.h"
 #include "threads/synch.h"
+#include "devices/block.h"
 
 
 /* Virtual page. */
@@ -25,7 +26,7 @@ struct page
     struct frame *frame;        /* Page frame. */
 
     /* Swap information, protected by frame->lock. */
-    //block_sector_t sector;       /* Starting sector of swap area, or -1. */
+    block_sector_t sector;       /* Starting sector of swap area, or -1. */
 
     /* Memory-mapped file information, protected by frame->lock. */
     bool private;               /* False to write back to file,
@@ -36,6 +37,7 @@ struct page
   };
 
   void page_table_intialization(struct hash*ptr);
+
 
 
 #endif // PAGE_H
