@@ -36,7 +36,11 @@ struct page
     off_t file_bytes;           /* Bytes to read/write, 1...PGSIZE. */
   };
 
-  void page_table_intialization(struct hash*ptr);
+void page_table_intialization(struct hash*ptr);
+bool page_hash_less_function(const struct hash_elem*first, const struct hash_elem*second, void *aux UNUSED);
+void page_hash_action_function(struct hash_elem*el, void *aux UNUSED);
+unsigned page_hash_hash_function(const struct hash_elem*el, void*aux UNUSED);
+struct page*find_page(void*addr);
 
 
 
