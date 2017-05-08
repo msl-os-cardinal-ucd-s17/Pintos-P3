@@ -2,6 +2,7 @@
 #define USERPROG_SYSCALL_H
 
 #include <stdbool.h>
+#include <list.h>
 #include "threads/interrupt.h"
 
 /*Defines the lowest possible virtual address a user program can occupy without encroaching 

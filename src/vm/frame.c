@@ -1,10 +1,10 @@
-#include "frame.h"
+#include "vm/frame.h"
+#include "userprog/pagedir.h"
 #include "threads/synch.h"
 
+#define MAX_FRAMES 10
 
-#define NUM_FRAMES 10
-
-frame frames[NUM_FRAMES]; /* global frames array */
+struct frame frames[MAX_FRAMES];
 
 static struct lock scan_lock; /* lock to protect frames traversal */
 
@@ -14,13 +14,33 @@ unsigned hand; /* clock hand for page eviction algorithm */
 
 
 /* Frame management function definitions */
-void frame_init(void)
+
+void frame_init (void)
 {
-	// -- obtain physical frames from user pool using palloc_get_page  (PAL_USER)
-	// -- use malloc to allocate memory for each struct frame that comes from the
-	// 	  page allocator
-	// -- initialize frame lock
+	lock_init (&scan_lock);
 }
+
+void* 
+frame_alloc (enum palloc_flags flags, struct page *passed_page)
+{
+	/* Following suit of palloc_get_page, we use a bitwise AND to determine if PAL_USER is set in flags. */
+	if ((flags & PAL_USER) == 0)
+		return NULL;
+
+	/* Get a single free page, if one is available, to find a kernel virtual base address for our newly allocated frame. */
+	void *free_page = palloc_get_page (flags);
+
+	if (free_page != NULL)
+	{
+		struct frame *new_frame = malloc(sizeof(struct frame));
+		new_frame->base = free_page;
+		new_frame->page = passed_page;
+		lock_acquire (&scan_lock);
+		lock_release (&scan_lock);
+	}
+
+}
+
 
 /* Acquires frame lock for given page */
 void frame_lock(struct page *page)
@@ -47,7 +67,7 @@ void frame_unlock(struct page *page)
 	}
 }
 
-void free_frame(struct frame *frame)
+void frame_free(struct frame *frame)
 {
 	frame->page = NULL;
 }

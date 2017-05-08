@@ -124,8 +124,17 @@ struct thread
     struct list child_list;   /* List of children - use for syscall synchronization */
 #endif
 
-    /*Pages owned by the thread*/
+    /* Pages owned by the thread */
     struct hash *pages;                 /* Page table. */
+    struct file *bin_file;              /* The binary executable. */
+
+    /* Owned by syscall.c */
+    struct list fds;                    /* List of file descriptors. */
+
+    struct list mappings;               /* Memory-mapped files. */
+    int next_handle;                    /* Next handle value. */
+
+    void *user_esp;                     /* User's stack pointer. */
 
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */

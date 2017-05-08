@@ -2,6 +2,8 @@
 #define SWAP_H
 
 #include <bitmap.h>
+#include "vm/page.h"
+#include "vm/frame.h"
 #include "devices/block.h"
 
 struct page;

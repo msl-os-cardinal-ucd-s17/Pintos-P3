@@ -9,6 +9,7 @@
 #include "threads/synch.h"
 #include "devices/block.h"
 
+#define STACK_LIMIT (1 << 23)
 
 /* Virtual page. */
 struct page
@@ -29,8 +30,7 @@ struct page
     block_sector_t sector;       /* Starting sector of swap area, or -1. */
 
     /* Memory-mapped file information, protected by frame->lock. */
-    bool private;               /* False to write back to file,
-	                           true to write back to swap. */
+    bool private;               /* False to write back to file, true to write back to swap. */
     struct file *file;          /* File. */
     off_t file_offset;          /* Offset in file. */
     off_t file_bytes;           /* Bytes to read/write, 1...PGSIZE. */
@@ -40,8 +40,7 @@ void page_table_intialization(struct hash*ptr);
 bool page_hash_less_function(const struct hash_elem*first, const struct hash_elem*second, void *aux UNUSED);
 void page_hash_action_function(struct hash_elem*el, void *aux UNUSED);
 unsigned page_hash_hash_function(const struct hash_elem*el, void*aux UNUSED);
-struct page*find_page(void*addr);
-
+struct page *find_page(void*addr);
 
 
 #endif // PAGE_H

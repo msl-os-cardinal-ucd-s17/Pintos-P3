@@ -18,6 +18,16 @@ static void syscall_handler (struct intr_frame *);
 static int get_user (const uint8_t *uaddr);
 bool verify_user_ptr(void *vaddr, uint8_t argc);
 
+/* Binds a mapping id to a region of memory and a file. */
+struct mapping
+{
+  struct list_elem elem;  /* List element. */
+  int handle;             /* Mapping id. */
+  struct file *file;      /* File. */
+  uint8_t *base;          /* Start of memory mapping. */
+  size_t page_cnt;        /* Number of pages mapped. */
+};
+
 /* System call function prototypes */
 void halt(void);
 void exit(int status);
@@ -32,6 +42,8 @@ int write(int fd, const void *buffer, unsigned size);
 void seek(int fd, unsigned position);
 unsigned tell(int fd);
 void close(int fd);
+void munmap (mapid_t mapping);
+mapid_t mmap (int fd, void *addr);
 
 /* Since the return value of the call doesn't necessarily indicate success in executing the system call (i.e. wait), 
    we desynchronize the value stored in the frame pointer's EAX from the success of the call. */
@@ -47,6 +59,8 @@ static int write_wrapper(struct intr_frame *f);
 static int seek_wrapper(struct intr_frame *f);
 static int tell_wrapper(struct intr_frame *f);
 static int close_wrapper(struct intr_frame *f);
+static int munmap_wrapper(struct intr_frame *f);
+static int mmap_wrapper(struct intr_frame *f);
 
 static struct lock file_lock;
 
@@ -174,6 +188,18 @@ syscall_handler (struct intr_frame *f)
           syscall_return_value = close_wrapper(f);
         }
   			break;
+      case SYS_MMAP:
+        if (verify_user_ptr ((f->esp + 4), 4) && verify_user_ptr ((f->esp + 8), 4))
+        {
+          syscall_return_value = mmap_wrapper(f);
+        }
+        break;
+      case SYS_MUNMAP:
+        if (verify_user_ptr ((f->esp + 4), 4))
+        {
+          syscall_return_value = munmap_wrapper(f);
+        }
+        break;
 		  default:
 			 break;
     }
@@ -459,7 +485,8 @@ close_wrapper(struct intr_frame *f)
 }
 
 void 
-close (int fd){
+close (int fd)
+{
   if (find_fd(fd) != NULL)
   {
     struct fd_elem *fd_elem = find_fd(fd);
@@ -469,6 +496,34 @@ close (int fd){
     list_remove(&fd_elem->elem);
     free(fd_elem);
   }
+}
+
+static int
+munmap_wrapper (struct intr_frame *f)
+{
+  munmap(*(mapid_t *)(f->esp + 4));
+  return 0;
+}
+
+void 
+munmap (mapid_t mapping)
+{
+
+}
+
+static int 
+mmap_wrapper (struct intr_frame *f)
+{
+  int return_value = 0;
+  return_value = mmap((*(int *)(f->esp + 4)), *(uint8_t **)(f->esp + 8));
+  f->eax = return_value;
+  return return_value;
+}
+
+mapid_t 
+mmap (int fd, void *addr)
+{
+  return -1;
 }
 
 bool 

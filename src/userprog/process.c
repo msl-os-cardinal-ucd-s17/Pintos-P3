@@ -650,7 +650,7 @@ setup_stack (void **esp, char **argv, int argc)
 
         /* Sentinel for alignment as detailed on page 37 of the Pintos manual */
         int remainder = (size_t) (*esp) % 4;
-        uint8_t sentinel = 0;
+        uint32_t *sentinel = 0;
         args_array[argc] = sentinel;
 
         if (remainder > 0)
