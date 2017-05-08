@@ -6,9 +6,22 @@
 
 
 ---- CURRENT P3 TEST RESULTS ----
-88/113 Tests Passing
-25/113 Tests Failing
+89/113 Tests Passing
+24/113 Tests Failing
 
+Tests Passing:
+	All Regression Tests
+	pt-grow-bad
+	pt-bad-addr
+	pt-bad-read
+	pt-write-code
+	pt-write-code2
+	page-parallel
+	page-shuffle
+	mmap-unmap
+	mmap-bad-fd
+	mmap-zero
+		
 ---- GROUP ----
 
 >> Fill in the names and email addresses of your group members.
