@@ -4,13 +4,19 @@
 		    |	DESIGN DOCUMENT           |
 		    +---------------------------+
 
+
+---- CURRENT P3 TEST RESULTS ----
+88/113 Tests Passing
+25/113 Tests Failing
+
 ---- GROUP ----
 
 >> Fill in the names and email addresses of your group members.
 
-FirstName LastName <email@domain.example>
-FirstName LastName <email@domain.example>
-FirstName LastName <email@domain.example>
+Brett Gedvilas <brett.gedvilas@ucdenver.edu>
+Joshua McAllister <joshua.mcallister@ucdenver.edu>
+Rachel Popo <rachel.popo@ucdenver.edu>
+David Ward <david.ward@ucdenver.edu>
 
 ---- PRELIMINARIES ----
 
